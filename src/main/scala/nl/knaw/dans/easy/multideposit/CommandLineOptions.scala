@@ -15,33 +15,34 @@
  */
 package nl.knaw.dans.easy.multideposit
 
-import java.nio.file.{ Path, Paths }
 import javax.naming.Context
 import javax.naming.ldap.InitialLdapContext
 
+import better.files._
+import better.files.File._
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 import org.apache.commons.configuration.PropertiesConfiguration
-import org.rogach.scallop.{ ScallopConf, ScallopOption }
+import org.rogach.scallop.{ ScallopConf, ScallopOption, ValueConverter, singleArgConverter }
 
 object CommandLineOptions extends DebugEnhancedLogging {
 
   def parse(args: Array[String]): Settings = {
     debug("Loading application.properties ...")
-    val homeDir = Paths.get(System.getProperty("app.home"))
+    val homeDir = home
     val props = new PropertiesConfiguration() {
       setDelimiterParsingDisabled(true)
-      load(homeDir.resolve("cfg/application.properties").toFile)
+      load((homeDir / "cfg" / "application.properties").toJava)
     }
     debug("Parsing command line ...")
     val opts = new ScallopCommandLine(props, args)
 
     val settings = Settings(
-      multidepositDir = opts.multiDepositDir().toAbsolutePath,
-      stagingDir = opts.stagingDir().toAbsolutePath,
-      outputDepositDir = opts.outputDepositDir().toAbsolutePath,
+      multidepositDir = opts.multiDepositDir(),
+      stagingDir = opts.stagingDir(),
+      outputDepositDir = opts.outputDepositDir(),
       datamanager = opts.datamanager(),
       depositPermissions = DepositPermissions(props.getString("deposit.permissions.access"), props.getString("deposit.permissions.group")),
-      formatsFile = homeDir.resolve("cfg/formats.txt"),
+      formatsFile = homeDir / "cfg" / "formats.txt",
       ldap = {
         val env = new java.util.Hashtable[String, String]
         env.put(Context.PROVIDER_URL, props.getString("auth.ldap.url"))
@@ -80,22 +81,24 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
        |Options:
        |""".stripMargin)
 
-  val multiDepositDir: ScallopOption[Path] = trailArg[Path](
+  private implicit val fileConverter: ValueConverter[File] = singleArgConverter(_.toFile)
+
+  val multiDepositDir: ScallopOption[File] = trailArg[File](
     name = "multi-deposit-dir",
     required = true,
     descr = "Directory containing the Submission Information Package to process. "
       + "This must be a valid path to a directory containing a file named "
       + s"'$instructionsFileName' in RFC4180 format.")
 
-  val stagingDir: ScallopOption[Path] = opt[Path](
+  val stagingDir: ScallopOption[File] = opt[File](
     name = "staging-dir",
     short = 's',
     descr = "A directory in which the deposit directories are created, after which they will be " +
       "moved to the 'output-deposit-dir'. If not specified, the value of 'staging-dir' in " +
       "'application.properties' is used.",
-    default = Some(Paths.get(props.getString("staging-dir"))))
+    default = Some(currentWorkingDirectory.relativize(props.getString("staging-dir").toFile)))
 
-  val outputDepositDir: ScallopOption[Path] = trailArg[Path](
+  val outputDepositDir: ScallopOption[File] = trailArg[File](
     name = "output-deposit-dir",
     required = true,
     descr = "A directory to which the deposit directories are moved after the staging has been " +
@@ -107,18 +110,20 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
     required = true,
     descr = "The username (id) of the datamanger (archivist) performing this deposit")
 
-  validatePathExists(multiDepositDir)
-  validateFileIsDirectory(multiDepositDir.map(_.toFile))
+  // TODO duplicate???
+  validateFileExists(multiDepositDir.map(_.toJava))
+  validateFileIsDirectory(multiDepositDir.map(_.toJava))
   validate(multiDepositDir)(dir => {
-    val instructionFile: Path = multiDepositInstructionsFile(dir)
-    if (!dir.directoryContains(instructionFile))
+    val instructionFile: File = multiDepositInstructionsFile(dir)
+    if (!dir.contains(instructionFile))
       Left(s"No instructions file found in this directory, expected: $instructionFile")
     else
       Right(())
   })
 
-  validatePathExists(outputDepositDir)
-  validateFileIsDirectory(outputDepositDir.map(_.toFile))
+  // TODO duplicate with map(_.toJava) and with method calls, see above
+  validateFileExists(outputDepositDir.map(_.toJava))
+  validateFileIsDirectory(outputDepositDir.map(_.toJava))
 
   verify()
 }

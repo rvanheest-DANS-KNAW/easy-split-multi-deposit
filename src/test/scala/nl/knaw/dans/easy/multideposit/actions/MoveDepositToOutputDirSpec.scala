@@ -15,34 +15,33 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.{ Files, Paths }
-
+import better.files.File
 import nl.knaw.dans.easy.multideposit.{ Settings, UnitSpec, _ }
-import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll }
+import org.scalatest.BeforeAndAfter
 
 import scala.util.{ Failure, Success }
 
 class MoveDepositToOutputDirSpec extends UnitSpec with BeforeAndAfter {
 
   implicit val settings = Settings(
-    multidepositDir = testDir.resolve("input"),
-    stagingDir = testDir.resolve("sd"),
-    outputDepositDir = testDir.resolve("dd")
+    multidepositDir = testDir./("input"),
+    stagingDir = testDir./("sd"),
+    outputDepositDir = testDir./("dd")
   )
 
   before {
     // create stagingDir content
     val baseDir = settings.stagingDir
-    Files.createDirectory(baseDir)
-    baseDir.toFile should exist
+    baseDir.createDirectory()
+    baseDir.toJava should exist
 
-    Paths.get(getClass.getResource("/allfields/output/input-ruimtereis01").toURI)
-      .copyDir(stagingDir("ruimtereis01"))
-    Paths.get(getClass.getResource("/allfields/output/input-ruimtereis02").toURI)
-      .copyDir(stagingDir("ruimtereis02"))
+    File(getClass.getResource("/allfields/output/input-ruimtereis01").toURI)
+      .copyTo(stagingDir("ruimtereis01"))
+    File(getClass.getResource("/allfields/output/input-ruimtereis02").toURI)
+      .copyTo(stagingDir("ruimtereis02"))
 
-    stagingDir("ruimtereis01").toFile should exist
-    stagingDir("ruimtereis02").toFile should exist
+    stagingDir("ruimtereis01").toJava should exist
+    stagingDir("ruimtereis02").toJava should exist
   }
 
   "checkPreconditions" should "verify that the deposit does not yet exist in the outputDepositDir" in {
@@ -51,8 +50,8 @@ class MoveDepositToOutputDirSpec extends UnitSpec with BeforeAndAfter {
 
   it should "fail if the deposit already exists in the outputDepositDir" in {
     val depositId = "ruimtereis01"
-    stagingDir(depositId).copyDir(outputDepositDir(depositId))
-    outputDepositDir(depositId).toFile should exist
+    stagingDir(depositId).copyTo(outputDepositDir(depositId))
+    outputDepositDir(depositId).toJava should exist
 
     inside(MoveDepositToOutputDir(1, depositId).checkPreconditions) {
       case Failure(ActionException(1, msg, _)) => msg should include(s"The deposit for dataset $depositId already exists")
@@ -63,18 +62,18 @@ class MoveDepositToOutputDirSpec extends UnitSpec with BeforeAndAfter {
     val depositId = "ruimtereis01"
     MoveDepositToOutputDir(1, depositId).execute() shouldBe a[Success[_]]
 
-    stagingDir(depositId).toFile shouldNot exist
-    outputDepositDir(depositId).toFile should exist
+    stagingDir(depositId).toJava shouldNot exist
+    outputDepositDir(depositId).toJava should exist
 
-    stagingDir("ruimtereis02").toFile should exist
-    outputDepositDir("ruimtereis02").toFile shouldNot exist
+    stagingDir("ruimtereis02").toJava should exist
+    outputDepositDir("ruimtereis02").toJava shouldNot exist
   }
 
   it should "only move the one deposit to the outputDepositDirectory, not other deposits in the staging directory" in {
     val depositId = "ruimtereis01"
     MoveDepositToOutputDir(1, depositId).execute() shouldBe a[Success[_]]
 
-    stagingDir("ruimtereis02").toFile should exist
-    outputDepositDir("ruimtereis02").toFile shouldNot exist
+    stagingDir("ruimtereis02").toJava should exist
+    outputDepositDir("ruimtereis02").toJava shouldNot exist
   }
 }

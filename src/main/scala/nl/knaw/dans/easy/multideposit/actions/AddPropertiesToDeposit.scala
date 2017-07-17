@@ -57,7 +57,7 @@ case class AddPropertiesToDeposit(deposit: Deposit)(implicit settings: Settings)
     }
 
     Try { addProperties(props, emailaddress) }
-      .flatMap(_ => Using.fileWriter(encoding)(stagingPropertiesFile(deposit.depositId).toFile)
+      .flatMap(_ => Using.fileWriter(encoding)(stagingPropertiesFile(deposit.depositId).toJava)
         .map(out => props.store(out, ""))
         .tried)
       .recoverWith {

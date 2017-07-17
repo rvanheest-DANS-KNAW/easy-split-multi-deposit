@@ -15,8 +15,7 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.{ Files, Path }
-
+import better.files._
 import nl.knaw.dans.easy.multideposit.actions.AddFileMetadataToDeposit._
 import nl.knaw.dans.easy.multideposit.model.{ AVFile, Deposit, FileAccessRights, Subtitles }
 import nl.knaw.dans.easy.multideposit.{ Settings, UnitAction, _ }
@@ -33,8 +32,8 @@ case class AddFileMetadataToDeposit(deposit: Deposit)(implicit settings: Setting
   case object Audio extends AudioVideo("http://schema.org/AudioObject")
   case object Video extends AudioVideo("http://schema.org/VideoObject")
 
-  class FileMetadata(val filepath: Path, val mimeType: MimeType)
-  case class AVFileMetadata(override val filepath: Path,
+  class FileMetadata(val filepath: File, val mimeType: MimeType)
+  case class AVFileMetadata(override val filepath: File,
                             override val mimeType: MimeType,
                             vocabulary: AudioVideo,
                             title: String,
@@ -42,8 +41,8 @@ case class AddFileMetadataToDeposit(deposit: Deposit)(implicit settings: Setting
                             subtitles: Seq[Subtitles]
                            ) extends FileMetadata(filepath, mimeType)
 
-  private lazy val fileInstructions: Map[Path, AVFile] = {
-    deposit.audioVideo.avFiles.map(avFile => avFile.path -> avFile).toMap
+  private lazy val fileInstructions: Map[File, AVFile] = {
+    deposit.audioVideo.avFiles.map(avFile => avFile.file -> avFile).toMap
   }
 
   private lazy val avAccessibility: FileAccessRights.Value = {
@@ -51,14 +50,14 @@ case class AddFileMetadataToDeposit(deposit: Deposit)(implicit settings: Setting
       .getOrElse(FileAccessRights.accessibleTo(deposit.profile.accessright))
   }
 
-  private def getFileMetadata(file: Path): Try[FileMetadata] = {
+  private def getFileMetadata(file: File): Try[FileMetadata] = {
     def mkFileMetadata(m: MimeType, voca: AudioVideo): AVFileMetadata = {
       fileInstructions.get(file) match {
         case Some(AVFile(_, optTitle, subtitles)) =>
-          val title = optTitle.getOrElse(file.getFileName.toString)
+          val title = optTitle.getOrElse(file.name)
           AVFileMetadata(file, m, voca, title, avAccessibility, subtitles)
         case None =>
-          AVFileMetadata(file, m, voca, file.getFileName.toString, avAccessibility, Seq.empty)
+          AVFileMetadata(file, m, voca, file.name, avAccessibility, Seq.empty)
       }
     }
 
@@ -71,9 +70,10 @@ case class AddFileMetadataToDeposit(deposit: Deposit)(implicit settings: Setting
 
   private lazy val fileMetadata: Try[Seq[FileMetadata]] = Try {
     val depositDir = multiDepositDir(deposit.depositId)
-    if (Files.exists(depositDir)) {
-      depositDir.listRecursively(!Files.isDirectory(_))
+    if (depositDir.exists) {
+      depositDir.listRecursively.withFilter(!_.isDirectory)
         .map(getFileMetadata)
+        .toSeq
         .collectResults
     }
     else // if the deposit does not contain any data
@@ -160,7 +160,7 @@ case class AddFileMetadataToDeposit(deposit: Deposit)(implicit settings: Setting
   }
 
   private def subtitleXml(subtitle: Subtitles): Elem = {
-    val filepath = multiDepositDir(deposit.depositId).relativize(subtitle.path)
+    val filepath = multiDepositDir(deposit.depositId).relativize(subtitle.file)
 
     subtitle.language
       .map(lang => <dcterms:relation xml:lang={lang}>{s"data/$filepath"}</dcterms:relation>)
@@ -175,10 +175,10 @@ object AddFileMetadataToDeposit {
   /**
    * Identify the mimeType of a path.
    *
-   * @param path the path to identify
+   * @param file the path to identify
    * @return the mimeType of the path if the identification was successful; `Failure` otherwise
    */
-  def getMimeType(path: Path): Try[MimeType] = Try {
-    tika.detect(path)
+  def getMimeType(file: File): Try[MimeType] = Try {
+    tika.detect(file.path)
   }
 }

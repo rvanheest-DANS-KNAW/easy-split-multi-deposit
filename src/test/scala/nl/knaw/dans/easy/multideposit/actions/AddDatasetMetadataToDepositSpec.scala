@@ -15,8 +15,7 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.Paths
-
+import better.files.File
 import nl.knaw.dans.common.lang.dataset.AccessCategory
 import nl.knaw.dans.easy.multideposit._
 import nl.knaw.dans.easy.multideposit.actions.AddDatasetMetadataToDeposit.depositToDDM
@@ -31,8 +30,8 @@ import scala.xml.{ Elem, Node }
 class AddDatasetMetadataToDepositSpec extends UnitSpec with CustomMatchers with BeforeAndAfter {
 
   implicit val settings = new Settings(
-    multidepositDir = testDir.resolve("md"),
-    stagingDir = testDir.resolve("sd")
+    multidepositDir = testDir./("md"),
+    stagingDir = testDir./("sd")
   ) {
     override val formats: Set[String] = Set("text/xml")
   }
@@ -115,20 +114,21 @@ class AddDatasetMetadataToDepositSpec extends UnitSpec with CustomMatchers with 
   </ddm:DDM>
 
   before {
-    Paths.get(getClass.getResource("/allfields/input/ruimtereis01/reisverslag/centaur.mpg").toURI)
-      .copyFile(settings.multidepositDir.resolve(s"$depositId/reisverslag/centaur.mpg"))
-    Paths.get(getClass.getResource("/allfields/input/ruimtereis01/reisverslag/centaur.srt").toURI)
-      .copyFile(settings.multidepositDir.resolve(s"$depositId/reisverslag/centaur.srt"))
+    val targetFolder = (settings.multidepositDir / depositId / "reisverslag").createDirectories()
+    File(getClass.getResource("/allfields/input/ruimtereis01/reisverslag/centaur.mpg").toURI)
+      .copyTo(targetFolder / "centaur.mpg")
+    File(getClass.getResource("/allfields/input/ruimtereis01/reisverslag/centaur.srt").toURI)
+      .copyTo(targetFolder / "centaur.srt")
   }
 
   "execute" should "write the metadata to a file at the correct place" in {
     val file = stagingDatasetMetadataFile(depositId)
 
-    file.toFile should not(exist)
+    file.toJava should not(exist)
 
     AddDatasetMetadataToDeposit(deposit).execute shouldBe a[Success[_]]
 
-    file.toFile should exist
+    file.toJava should exist
   }
 
   "depositToDDM" should "return the expected xml" in {
@@ -136,8 +136,8 @@ class AddDatasetMetadataToDepositSpec extends UnitSpec with CustomMatchers with 
   }
 
   it should "return xml on reading from the allfields input instructions csv" in {
-    implicit val s2: Settings = settings.copy(multidepositDir = Paths.get(getClass.getResource("/allfields/input").toURI))
-    val csv = Paths.get(getClass.getResource("/allfields/input/instructions.csv").toURI)
+    implicit val s2: Settings = settings.copy(multidepositDir = File(getClass.getResource("/allfields/input").toURI))
+    val csv = File(getClass.getResource("/allfields/input/instructions.csv").toURI)
     inside(MultiDepositParser()(s2).parse(csv).map(_.map(depositToDDM(_)(s2)))) {
       case Success(xmls) => xmls should have size 4
     }

@@ -15,10 +15,12 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
+import scala.collection.JavaConverters._
 import java.io.IOException
 import java.nio.file._
-import java.nio.file.attribute._
+import java.nio.file.attribute.{ BasicFileAttributes, PosixFilePermissions, UserPrincipalNotFoundException }
 
+import better.files._
 import nl.knaw.dans.easy.multideposit.model.DepositId
 import nl.knaw.dans.easy.multideposit.{ UnitAction, _ }
 import nl.knaw.dans.lib.error._
@@ -42,14 +44,14 @@ case class SetDepositPermissions(row: Int, depositId: DepositId)(implicit settin
     isOnPosixFileSystem(stagingDirectory)
       .flatMap {
         case true => Try {
-          Files.walkFileTree(stagingDirectory, PermissionFileVisitor(settings.depositPermissions))
+          Files.walkFileTree(stagingDirectory.path, PermissionFileVisitor(settings.depositPermissions))
         }
         case false => Success(())
       }
   }
 
-  private def isOnPosixFileSystem(file: Path): Try[Boolean] = Try {
-    Files.getPosixFilePermissions(file)
+  private def isOnPosixFileSystem(file: File): Try[Boolean] = Try {
+    file.permissions
     true
   } recover {
     case _: UnsupportedOperationException => false
@@ -66,12 +68,10 @@ case class SetDepositPermissions(row: Int, depositId: DepositId)(implicit settin
         .getOrElse(changePermissions(dir))
     }
 
-    private def changePermissions(path: Path): FileVisitResult = {
+    private def changePermissions(file: File): FileVisitResult = {
       Try {
-        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(depositPermissions.permissions))
-
-        val group = path.getFileSystem.getUserPrincipalLookupService.lookupPrincipalByGroupName(depositPermissions.group)
-        Files.getFileAttributeView(path, classOf[PosixFileAttributeView], LinkOption.NOFOLLOW_LINKS).setGroup(group)
+        file.setPermissions(PosixFilePermissions.fromString(depositPermissions.permissions).asScala.toSet)
+        file.setGroup(depositPermissions.group)
 
         FileVisitResult.CONTINUE
       } getOrRecover {
@@ -80,9 +80,9 @@ case class SetDepositPermissions(row: Int, depositId: DepositId)(implicit settin
         case cce: ClassCastException => throw ActionException(row, "No file permission elements in set", cce)
         case iae: IllegalArgumentException => throw ActionException(row, s"Invalid privileges (${ depositPermissions.permissions })", iae)
         case fse: FileSystemException => throw ActionException(row, s"Not able to set the group to ${ depositPermissions.group }. Probably the current user (${ System.getProperty("user.name") }) is not part of this group.", fse)
-        case ioe: IOException => throw ActionException(row, s"Could not set file permissions or group on $path", ioe)
-        case se: SecurityException => throw ActionException(row, s"Not enough privileges to set file permissions or group on $path", se)
-        case NonFatal(e) => throw ActionException(row, s"unexpected error occured on $path", e)
+        case ioe: IOException => throw ActionException(row, s"Could not set file permissions or group on $file", ioe)
+        case se: SecurityException => throw ActionException(row, s"Not enough privileges to set file permissions or group on $file", se)
+        case NonFatal(e) => throw ActionException(row, s"unexpected error occured on $file", e)
       }
     }
   }

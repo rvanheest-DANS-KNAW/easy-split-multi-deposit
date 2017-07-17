@@ -15,13 +15,12 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.Files
 import javax.naming.directory.Attributes
 
 import nl.knaw.dans.easy.multideposit.model.AudioVideo
 import nl.knaw.dans.easy.multideposit.{ ActionException, Settings, UnitSpec, _ }
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll }
+import org.scalatest.BeforeAndAfter
 
 import scala.util.{ Failure, Success }
 
@@ -29,8 +28,8 @@ class AddPropertiesToDepositSpec extends UnitSpec with BeforeAndAfter with MockF
 
   val ldapMock: Ldap = mock[Ldap]
   implicit val settings = Settings(
-    multidepositDir = testDir.resolve("md"),
-    stagingDir = testDir.resolve("sd"),
+    multidepositDir = testDir / "md",
+    stagingDir = testDir / "sd",
     datamanager = "dm",
     ldap = ldapMock
   )
@@ -41,7 +40,7 @@ class AddPropertiesToDepositSpec extends UnitSpec with BeforeAndAfter with MockF
   }
 
   before {
-    Files.createDirectories(settings.stagingDir.resolve(s"md-$depositId"))
+    (settings.stagingDir / s"md-$depositId").createDirectories()
   }
 
   "checkPreconditions" should "succeed if ldap identifies the depositorUserId as active" in {
@@ -78,9 +77,9 @@ class AddPropertiesToDepositSpec extends UnitSpec with BeforeAndAfter with MockF
     AddPropertiesToDeposit(testDeposit1.copy(audioVideo = AudioVideo())).execute("dm@test.org") shouldBe a[Success[_]]
 
     val props = stagingPropertiesFile(testDeposit1.depositId)
-    props.toFile should exist
+    props.toJava should exist
 
-    props.read() should {
+    props.contentAsString should {
       include("state.label") and
         include("state.description") and
         include(s"depositor.userId=${ testDeposit1.depositorUserId }") and
@@ -96,9 +95,9 @@ class AddPropertiesToDepositSpec extends UnitSpec with BeforeAndAfter with MockF
     AddPropertiesToDeposit(testDeposit1).execute("dm@test.org") shouldBe a[Success[_]]
 
     val props = stagingPropertiesFile(testDeposit1.depositId)
-    props.toFile should exist
+    props.toJava should exist
 
-    props.read() should {
+    props.contentAsString should {
       include("state.label") and
         include("state.description") and
         include("depositor.userId=ruimtereiziger1") and

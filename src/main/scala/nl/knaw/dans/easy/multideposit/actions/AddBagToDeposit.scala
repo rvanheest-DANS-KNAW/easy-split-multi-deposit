@@ -15,9 +15,10 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.{ Files, Path }
+import java.nio.file.Files
 import java.util.{ Locale, Arrays => JArrays }
 
+import better.files.File
 import gov.loc.repository.bagit.creator.BagCreator
 import gov.loc.repository.bagit.domain.{ Metadata => BagitMetadata }
 import gov.loc.repository.bagit.hash.StandardSupportedAlgorithms
@@ -51,21 +52,21 @@ case class AddBagToDeposit(deposit: Deposit)(implicit settings: Settings) extend
       add("Created", deposit.profile.created.toString(ISODateTimeFormat.dateTime()))
     }
 
-    if (Files.exists(inputDir)) {
-      inputDir.copyDir(stageDir)
+    if (inputDir.exists) {
+      inputDir.copyTo(stageDir)
       metadata.add("Bag-Size", formatSize(calculateSizeOfPath(inputDir)))
     }
     else {
       metadata.add("Bag-Size", formatSize(0L))
     }
 
-    BagCreator.bagInPlace(stageDir, JArrays.asList(StandardSupportedAlgorithms.SHA1), true, metadata)
+    BagCreator.bagInPlace(stageDir.path, JArrays.asList(StandardSupportedAlgorithms.SHA1), true, metadata)
   }
 
-  private def calculateSizeOfPath(dir: Path): Long = {
+  private def calculateSizeOfPath(dir: File): Long = {
     val visitor = new FileCountAndTotalSizeVistor
 
-    Files.walkFileTree(dir, visitor)
+    Files.walkFileTree(dir.path, visitor)
 
     visitor.getTotalSize
   }

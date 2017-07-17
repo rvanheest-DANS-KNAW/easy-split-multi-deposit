@@ -15,28 +15,26 @@
  */
 package nl.knaw.dans.easy.multideposit
 
-import java.nio.file.{ Files, Path, Paths }
 import javax.naming.directory.{ Attributes, BasicAttribute, BasicAttributes }
 
+import better.files._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfter
 
 import scala.util.{ Failure, Success }
 import scala.xml.transform.{ RewriteRule, RuleTransformer }
 import scala.xml.{ Elem, Node, NodeSeq, XML }
-import resource._
-import scala.collection.JavaConverters._
 
 class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with CustomMatchers {
 
-  private val formatsFile: Path = testDir.resolve("formats.txt")
-  private val allfields = testDir.resolve("md/allfields").toAbsolutePath
-  private val invalidCSV = testDir.resolve("md/invalidCSV").toAbsolutePath
+  private val formatsFile: File = testDir / "formats.txt"
+  private val allfields = testDir / "md" / "allfields"
+  private val invalidCSV = testDir / "md" / "invalidCSV"
 
   before {
-    Paths.get(getClass.getResource("/debug-config/formats.txt").toURI).copyFile(formatsFile)
-    Paths.get(getClass.getResource("/allfields/input").toURI).copyDir(allfields)
-    Paths.get(getClass.getResource("/invalidCSV/input").toURI).copyDir(invalidCSV)
+    File(getClass.getResource("/debug-config/formats.txt").toURI).copyTo(formatsFile)
+    File(getClass.getResource("/allfields/input").toURI).copyTo(allfields)
+    File(getClass.getResource("/invalidCSV/input").toURI).copyTo(invalidCSV)
   }
 
   "allfields" should "succeed in transforming the input into a bag" in {
@@ -46,14 +44,14 @@ class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with Cu
     val ldap = mock[Ldap]
     implicit val settings = Settings(
       multidepositDir = allfields,
-      stagingDir = testDir.resolve("sd").toAbsolutePath,
-      outputDepositDir = testDir.resolve("od").toAbsolutePath,
+      stagingDir = testDir / "sd",
+      outputDepositDir = testDir / "od",
       datamanager = "easyadmin",
       depositPermissions = DepositPermissions("rwxrwx---", "admin"),
       formatsFile = formatsFile,
       ldap = ldap
     )
-    val expectedOutputDir = Paths.get(getClass.getResource("/allfields/output").toURI)
+    val expectedOutputDir = File(getClass.getResource("/allfields/output").toURI)
 
     def createDatamanagerAttributes: BasicAttributes = {
       new BasicAttributes() {
@@ -85,12 +83,10 @@ class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with Cu
     for (bagName <- Seq("ruimtereis01", "ruimtereis02", "ruimtereis03", "ruimtereis04")) {
       // TODO I'm not happy with this way of testing the content of each file, especially with ignoring specific lines,
       // but I'm in a hurry, so I'll think of a better way later
-      val bag = settings.outputDepositDir.resolve(s"allfields-$bagName/bag")
-      val expBag = expectedOutputDir.resolve(s"input-$bagName/bag")
+      val bag = settings.outputDepositDir / s"allfields-$bagName" / "bag"
+      val expBag = expectedOutputDir / s"input-$bagName" / "bag"
 
-      managed(Files.list(bag))
-        .acquireAndGet(_.iterator().asScala.toList)
-        .map(_.getFileName.toString) should contain only(
+      bag.list.map(_.name).toList should contain only(
         "bag-info.txt",
         "bagit.txt",
         "manifest-sha1.txt",
@@ -98,45 +94,45 @@ class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with Cu
         "data",
         "metadata")
 
-      val bagInfo = bag.resolve("bag-info.txt")
-      val expBagInfo = expBag.resolve("bag-info.txt")
-      bagInfo.read().lines.toSeq should contain allElementsOf expBagInfo.read().lines.filterNot(_ contains "Bagging-Date").toSeq
+      val bagInfo = bag / "bag-info.txt"
+      val expBagInfo = expBag / "bag-info.txt"
+      bagInfo.lines should contain allElementsOf expBagInfo.lines.filterNot(_ contains "Bagging-Date").toSeq
 
-      val bagit = bag.resolve("bagit.txt")
-      val expBagit = expBag.resolve("bagit.txt")
-      bagit.read().lines.toSeq should contain allElementsOf expBagit.read().lines.toSeq
+      val bagit = bag / "bagit.txt"
+      val expBagit = expBag / "bagit.txt"
+      bagit === expBagit
+//      bagit.lines should contain allElementsOf expBagit.lines
 
-      val manifest = bag.resolve("manifest-sha1.txt")
-      val expManifest = expBag.resolve("manifest-sha1.txt")
-      manifest.read().lines.toSeq should contain allElementsOf expManifest.read().lines.toSeq
+      val manifest = bag / "manifest-sha1.txt"
+      val expManifest = expBag / "manifest-sha1.txt"
+      manifest === expManifest
+//      manifest.lines should contain allElementsOf expManifest.lines
 
-      val tagManifest = bag.resolve("tagmanifest-sha1.txt")
-      val expTagManifest = expBag.resolve("tagmanifest-sha1.txt")
-      tagManifest.read().lines.toSeq should contain allElementsOf expTagManifest.read().lines.filterNot(_ contains "bag-info.txt").filterNot(_ contains "manifest-sha1.txt").toSeq
+      val tagManifest = bag / "tagmanifest-sha1.txt"
+      val expTagManifest = expBag / "tagmanifest-sha1.txt"
+      tagManifest.lines should contain allElementsOf expTagManifest.lines.filterNot(_ contains "bag-info.txt").filterNot(_ contains "manifest-sha1.txt").toSeq
 
-      val dataDir = bag.resolve("data/")
-      dataDir.toFile should exist
-      dataDir.listRecursively().map {
-        case file if Files.isDirectory(file) => file.getFileName.toString + "/"
-        case file => file.getFileName.toString
-      } should contain theSameElementsAs expectedDataContent(bagName)
+      val dataDir = bag / "data"
+      dataDir.toJava should exist
+      dataDir.listRecursively.map {
+        case file if file.isDirectory => file.name + "/"
+        case file => file.name
+      }.toList should contain theSameElementsAs expectedDataContent(bagName)
 
-      managed(Files.list(bag.resolve("metadata")))
-        .acquireAndGet(_.iterator().asScala.toList)
-        .map(_.getFileName.toString) should contain only("dataset.xml", "files.xml")
+      (bag / "metadata").list.map(_.name).toList should contain only("dataset.xml", "files.xml")
 
-      val datasetXml = bag.resolve("metadata/dataset.xml")
-      val expDatasetXml = expBag.resolve("metadata/dataset.xml")
+      val datasetXml = bag / "metadata" / "dataset.xml"
+      val expDatasetXml = expBag / "metadata" / "dataset.xml"
       val datasetTransformer = removeElemByName("available")
-      datasetTransformer.transform(XML.loadFile(datasetXml.toFile)) should equalTrimmed (datasetTransformer.transform(XML.loadFile(expDatasetXml.toFile)))
+      datasetTransformer.transform(XML.loadFile(datasetXml.toJava)) should equalTrimmed (datasetTransformer.transform(XML.loadFile(expDatasetXml.toJava)))
 
-      val filesXml = bag.resolve("metadata/files.xml")
-      val expFilesXml = expBag.resolve("metadata/files.xml")
-      (XML.loadFile(filesXml.toFile) \ "files").toSet should equalTrimmed((XML.loadFile(expFilesXml.toFile) \ "files").toSet)
+      val filesXml = bag / "metadata" / "files.xml"
+      val expFilesXml = expBag / "metadata" / "files.xml"
+      (XML.loadFile(filesXml.toJava) \ "files").toSet should equalTrimmed((XML.loadFile(expFilesXml.toJava) \ "files").toSet)
 
-      val props = settings.outputDepositDir.resolve(s"allfields-$bagName/deposit.properties")
-      val expProps = expectedOutputDir.resolve(s"input-$bagName/deposit.properties")
-      props.read().lines.toSeq should contain allElementsOf expProps.read().lines.filterNot(_ startsWith "#").filterNot(_ contains "bag-store.bag-id").toSeq
+      val props = settings.outputDepositDir / s"allfields-$bagName" / "deposit.properties"
+      val expProps = expectedOutputDir / s"input-$bagName" / "deposit.properties"
+      props.lines should contain allElementsOf expProps.lines.filterNot(_ startsWith "#").filterNot(_ contains "bag-store.bag-id").toSeq
     }
   }
 

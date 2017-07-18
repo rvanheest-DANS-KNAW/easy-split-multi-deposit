@@ -52,13 +52,10 @@ case class AddBagToDeposit(deposit: Deposit)(implicit settings: Settings) extend
       add("Created", deposit.profile.created.toString(ISODateTimeFormat.dateTime()))
     }
 
-    if (inputDir.exists) {
-      inputDir.copyTo(stageDir)
-      metadata.add("Bag-Size", formatSize(calculateSizeOfPath(inputDir)))
-    }
-    else {
+    if (inputDir.exists)
+      metadata.add("Bag-Size", formatSize(calculateSizeOfPath(inputDir.copyTo(stageDir))))
+    else
       metadata.add("Bag-Size", formatSize(0L))
-    }
 
     BagCreator.bagInPlace(stageDir.path, JArrays.asList(StandardSupportedAlgorithms.SHA1), true, metadata)
   }

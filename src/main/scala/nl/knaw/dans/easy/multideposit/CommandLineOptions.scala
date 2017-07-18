@@ -15,6 +15,7 @@
  */
 package nl.knaw.dans.easy.multideposit
 
+import java.nio.file.{ Path, Paths }
 import javax.naming.Context
 import javax.naming.ldap.InitialLdapContext
 
@@ -90,13 +91,13 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
       + "This must be a valid path to a directory containing a file named "
       + s"'$instructionsFileName' in RFC4180 format.")
 
-  val stagingDir: ScallopOption[File] = opt[File](
+  val stagingDir: ScallopOption[Path] = opt[Path](
     name = "staging-dir",
     short = 's',
     descr = "A directory in which the deposit directories are created, after which they will be " +
       "moved to the 'output-deposit-dir'. If not specified, the value of 'staging-dir' in " +
       "'application.properties' is used.",
-    default = Some(currentWorkingDirectory.relativize(props.getString("staging-dir").toFile)))
+    default = Some(Paths.get(props.getString("staging-dir"))))
 
   val outputDepositDir: ScallopOption[File] = trailArg[File](
     name = "output-deposit-dir",

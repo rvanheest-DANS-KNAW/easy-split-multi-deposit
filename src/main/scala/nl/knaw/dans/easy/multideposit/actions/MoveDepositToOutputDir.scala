@@ -15,8 +15,6 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import better.files._
-
 import nl.knaw.dans.easy.multideposit.model.DepositId
 import nl.knaw.dans.easy.multideposit.{ Settings, _ }
 import nl.knaw.dans.lib.error.CompositeException

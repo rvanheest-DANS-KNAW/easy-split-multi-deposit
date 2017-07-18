@@ -18,7 +18,7 @@ package nl.knaw.dans.easy.multideposit.actions
 import scala.collection.JavaConverters._
 import java.io.IOException
 import java.nio.file._
-import java.nio.file.attribute.{ BasicFileAttributes, PosixFilePermissions, UserPrincipalNotFoundException }
+import java.nio.file.attribute._
 
 import better.files._
 import nl.knaw.dans.easy.multideposit.model.DepositId
@@ -71,7 +71,9 @@ case class SetDepositPermissions(row: Int, depositId: DepositId)(implicit settin
     private def changePermissions(file: File): FileVisitResult = {
       Try {
         file.setPermissions(PosixFilePermissions.fromString(depositPermissions.permissions).asScala.toSet)
-        file.setGroup(depositPermissions.group)
+
+        val group = file.fileSystem.getUserPrincipalLookupService.lookupPrincipalByGroupName(depositPermissions.group)
+        Files.getFileAttributeView(file.path, classOf[PosixFileAttributeView]).setGroup(group)
 
         FileVisitResult.CONTINUE
       } getOrRecover {

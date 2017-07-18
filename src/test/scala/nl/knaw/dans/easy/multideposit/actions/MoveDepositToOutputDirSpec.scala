@@ -24,9 +24,9 @@ import scala.util.{ Failure, Success }
 class MoveDepositToOutputDirSpec extends UnitSpec with BeforeAndAfter {
 
   implicit val settings = Settings(
-    multidepositDir = testDir./("input"),
-    stagingDir = testDir./("sd"),
-    outputDepositDir = testDir./("dd")
+    multidepositDir = testDir / "input",
+    stagingDir = testDir / "sd",
+    outputDepositDir = testDir / "dd"
   )
 
   before {
@@ -34,6 +34,8 @@ class MoveDepositToOutputDirSpec extends UnitSpec with BeforeAndAfter {
     val baseDir = settings.stagingDir
     baseDir.createDirectory()
     baseDir.toJava should exist
+
+    settings.outputDepositDir.createDirectory()
 
     File(getClass.getResource("/allfields/output/input-ruimtereis01").toURI)
       .copyTo(stagingDir("ruimtereis01"))

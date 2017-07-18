@@ -116,6 +116,7 @@ class AddFileMetadataToDepositSpec extends UnitSpec with BeforeAndAfter with Cus
     val deposit = testDeposit1.copy(depositId = depositId)
 
     val audioFile = multiDepositDir(depositId) / "path" / "to" / "a" / "random" / "audio" / "chicken.mp3"
+    audioFile.parent.createDirectories()
     testDir / "md" / "ruimtereis04" / "path" / "to" / "a" / "random" / "sound" / "chicken.mp3" copyTo audioFile
 
     val currentAV = deposit.audioVideo.avFiles

@@ -38,7 +38,7 @@ class AddBagToDepositSpec extends UnitSpec with BeforeAndAfter {
 
   before {
     (multiDepositDir(depositId) / "file1.txt").createIfNotExists(createParents = true).write(file1Text)
-    (multiDepositDir(depositId) / "folder1" / " file2.txt").createIfNotExists(createParents = true).write(file2Text)
+    (multiDepositDir(depositId) / "folder1" / "file2.txt").createIfNotExists(createParents = true).write(file2Text)
     (multiDepositDir(depositId) / "folder1" / "file3.txt").createIfNotExists(createParents = true).write(file3Text)
     (multiDepositDir(depositId) / "folder2" / "file4.txt").createIfNotExists(createParents = true).write(file4Text)
     (multiDepositDir("ruimtereis02") / "folder3" / "file5.txt").createIfNotExists(createParents = true).write("file5Text")
@@ -144,7 +144,7 @@ class AddBagToDepositSpec extends UnitSpec with BeforeAndAfter {
     (root / manifestFile).lineIterator
       .map(_.split("  "))
       .foreach {
-        case Array(sha1, file) => (root / file).sha1 shouldBe sha1
+        case Array(sha1, file) => (root / file).sha1.toLowerCase shouldBe sha1
         case line => fail(s"unexpected line detected: ${ line.mkString("  ") }")
       }
   }

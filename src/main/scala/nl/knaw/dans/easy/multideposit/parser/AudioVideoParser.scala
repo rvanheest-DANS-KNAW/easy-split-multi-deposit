@@ -96,21 +96,21 @@ trait AudioVideoParser {
    * besides which a warning is logged, notifying the user that `path` should be relative to the
    * deposit instead.
    *
-   * If both options do not suffice, the path is just wrapped in a `File`.
+   * If both options do not suffice, the path is itself is returned inside a `Left`.
    *
    * @param path the path to a file, as provided by the user input
    * @return the absolute path to this file, if it exists
    */
-  private def findPath(depositId: DepositId)(path: String): File = {
+  private def findPath(depositId: DepositId)(path: String): Either[String, File] = {
     lazy val option1 = multiDepositDir(depositId) / path
     lazy val option2 = settings.multidepositDir / path
 
     (option1, option2) match {
-      case (path1, _) if path1.exists => path1
+      case (path1, _) if path1.exists => Right(path1)
       case (_, path2) if path2.exists =>
         logger.warn(s"path '$path' is not relative to its depositId '$depositId', but rather relative to the multideposit")
-        path2
-      case (_, _) => path.toFile
+        Right(path2)
+      case (_, _) => Left(path)
     }
   }
 
@@ -121,40 +121,27 @@ trait AudioVideoParser {
     val subtitleLang = row.find("AV_SUBTITLES_LANGUAGE")
 
     (file, title, subtitle, subtitleLang) match {
-      case (Some(f), t, Some(sub), subLang)
-        if f.exists &&
-          f.isRegularFile &&
-          sub.exists &&
-          sub.isRegularFile &&
-          subLang.forall(isValidISO639_1Language) =>
+      case (Some(Right(f)), t, Some(Right(sub)), subLang)
+        if f.isRegularFile && sub.isRegularFile && subLang.forall(isValidISO639_1Language) =>
         Some(Try { (f, t, Some(Subtitles(sub, subLang))) })
-      case (Some(f), _, Some(_), _)
-        if !f.exists =>
-        Some(Failure(ParseException(rowNum, s"AV_FILE '$f' does not exist")))
-      case (Some(f), _, Some(_), _)
-        if !f.isRegularFile =>
+      case (Some(Right(f)), _, Some(_), _) if !f.isRegularFile =>
         Some(Failure(ParseException(rowNum, s"AV_FILE '$f' is not a file")))
-      case (Some(_), _, Some(sub), _)
-        if !sub.exists =>
-        Some(Failure(ParseException(rowNum, s"AV_SUBTITLES '$sub' does not exist")))
-      case (Some(_), _, Some(sub), _)
-        if !sub.isRegularFile =>
+      case (Some(Left(f)), _, Some(_), _) =>
+        Some(Failure(ParseException(rowNum, s"AV_FILE '$f' does not exist")))
+      case (Some(_), _, Some(Right(sub)), _) if !sub.isRegularFile =>
         Some(Failure(ParseException(rowNum, s"AV_SUBTITLES '$sub' is not a file")))
-      case (Some(_), _, Some(_), Some(subLang))
-        if !isValidISO639_1Language(subLang) =>
+      case (Some(_), _, Some(Left(sub)), _) =>
+        Some(Failure(ParseException(rowNum, s"AV_SUBTITLES '$sub' does not exist")))
+      case (Some(_), _, Some(_), Some(subLang)) if !isValidISO639_1Language(subLang) =>
         Some(Failure(ParseException(rowNum, s"AV_SUBTITLES_LANGUAGE '$subLang' doesn't have a valid ISO 639-1 language value")))
       case (Some(_), _, None, Some(subLang)) =>
         Some(Failure(ParseException(rowNum, s"Missing value for AV_SUBTITLES, since AV_SUBTITLES_LANGUAGE does have a value: '$subLang'")))
-      case (Some(f), t, None, None)
-        if f.exists &&
-          f.isRegularFile =>
+      case (Some(Right(f)), t, None, None) if f.isRegularFile =>
         Some(Success((f, t, None)))
-      case (Some(f), _, None, None)
-        if !f.exists =>
-        Some(Failure(ParseException(rowNum, s"AV_FILE '$f' does not exist")))
-      case (Some(f), _, None, None)
-        if !f.isRegularFile =>
+      case (Some(Right(f)), _, None, None) if !f.isRegularFile =>
         Some(Failure(ParseException(rowNum, s"AV_FILE '$f' is not a file")))
+      case (Some(Left(f)), _, None, None) =>
+        Some(Failure(ParseException(rowNum, s"AV_FILE '$f' does not exist")))
       case (None, None, None, None) => None
       case (None, _, _, _) =>
         Some(Failure(ParseException(rowNum, "No value is defined for AV_FILE, while some of [AV_FILE_TITLE, AV_SUBTITLES, AV_SUBTITLES_LANGUAGE] are defined")))

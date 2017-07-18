@@ -52,6 +52,7 @@ class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with Cu
       ldap = ldap
     )
     val expectedOutputDir = File(getClass.getResource("/allfields/output").toURI)
+    settings.outputDepositDir.createDirectories()
 
     def createDatamanagerAttributes: BasicAttributes = {
       new BasicAttributes() {
@@ -70,14 +71,14 @@ class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with Cu
     Main.run shouldBe a[Success[_]]
 
     val expectedDataContent = Map(
-      "ruimtereis01" -> Set("data/", "ruimtereis01_verklaring.txt", "path/", "to/", "a/",
-        "random/", "video/", "hubble.mpg", "reisverslag/", "centaur.mpg", "centaur.srt",
+      "ruimtereis01" -> Set("ruimtereis01_verklaring.txt", "path/", "to/", "a/", "random/",
+        "video/", "hubble.mpg", "reisverslag/", "centaur.mpg", "centaur.srt",
         "centaur-nederlands.srt", "deel01.docx", "deel01.txt", "deel02.txt", "deel03.txt"),
-      "ruimtereis02" -> Set("data/", "hubble-wiki-en.txt", "hubble-wiki-nl.txt", "path/",
-        "to/", "images/", "Hubble_01.jpg", "Hubbleshots.jpg"),
-      "ruimtereis03" -> Set("data/"),
-      "ruimtereis04" -> Set("data/", "Quicksort.hs", "path/", "to/", "a/", "random/",
-        "file/", "file.txt", "sound/", "chicken.mp3")
+      "ruimtereis02" -> Set("hubble-wiki-en.txt", "hubble-wiki-nl.txt", "path/", "to/",
+        "images/", "Hubble_01.jpg", "Hubbleshots.jpg"),
+      "ruimtereis03" -> Set.empty,
+      "ruimtereis04" -> Set("Quicksort.hs", "path/", "to/", "a/", "random/", "file/",
+        "file.txt", "sound/", "chicken.mp3")
     )
 
     for (bagName <- Seq("ruimtereis01", "ruimtereis02", "ruimtereis03", "ruimtereis04")) {
@@ -98,15 +99,8 @@ class BlackBoxSpec extends UnitSpec with BeforeAndAfter with MockFactory with Cu
       val expBagInfo = expBag / "bag-info.txt"
       bagInfo.lines should contain allElementsOf expBagInfo.lines.filterNot(_ contains "Bagging-Date").toSeq
 
-      val bagit = bag / "bagit.txt"
-      val expBagit = expBag / "bagit.txt"
-      bagit === expBagit
-//      bagit.lines should contain allElementsOf expBagit.lines
-
-      val manifest = bag / "manifest-sha1.txt"
-      val expManifest = expBag / "manifest-sha1.txt"
-      manifest === expManifest
-//      manifest.lines should contain allElementsOf expManifest.lines
+      bag / "bagit.txt" === expBag / "bagit.txt"
+      bag / "manifest-sha1.txt" === expBag / "manifest-sha1.txt"
 
       val tagManifest = bag / "tagmanifest-sha1.txt"
       val expTagManifest = expBag / "tagmanifest-sha1.txt"

@@ -19,31 +19,30 @@ import java.nio.file.{ Path, Paths }
 import javax.naming.Context
 import javax.naming.ldap.InitialLdapContext
 
-import better.files._
 import better.files.File._
+import better.files._
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 import org.apache.commons.configuration.PropertiesConfiguration
-import org.rogach.scallop.{ ScallopConf, ScallopOption, ValueConverter, singleArgConverter }
+import org.rogach.scallop.{ ScallopConf, ScallopOption }
 
 object CommandLineOptions extends DebugEnhancedLogging {
 
   def parse(args: Array[String]): Settings = {
     debug("Loading application.properties ...")
-    val homeDir = home
     val props = new PropertiesConfiguration() {
       setDelimiterParsingDisabled(true)
-      load((homeDir / "cfg" / "application.properties").toJava)
+      load((home / "cfg" / "application.properties").toJava)
     }
     debug("Parsing command line ...")
     val opts = new ScallopCommandLine(props, args)
 
     val settings = Settings(
-      multidepositDir = opts.multiDepositDir(),
-      stagingDir = opts.stagingDir(),
-      outputDepositDir = opts.outputDepositDir(),
+      multidepositDir = File(opts.multiDepositDir()),
+      stagingDir = File(opts.stagingDir()),
+      outputDepositDir = File(opts.outputDepositDir()),
       datamanager = opts.datamanager(),
       depositPermissions = DepositPermissions(props.getString("deposit.permissions.access"), props.getString("deposit.permissions.group")),
-      formatsFile = homeDir / "cfg" / "formats.txt",
+      formatsFile = home / "cfg" / "formats.txt",
       ldap = {
         val env = new java.util.Hashtable[String, String]
         env.put(Context.PROVIDER_URL, props.getString("auth.ldap.url"))
@@ -82,9 +81,7 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
        |Options:
        |""".stripMargin)
 
-  private implicit val fileConverter: ValueConverter[File] = singleArgConverter(_.toFile)
-
-  val multiDepositDir: ScallopOption[File] = trailArg[File](
+  val multiDepositDir: ScallopOption[Path] = trailArg[Path](
     name = "multi-deposit-dir",
     required = true,
     descr = "Directory containing the Submission Information Package to process. "
@@ -99,7 +96,7 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
       "'application.properties' is used.",
     default = Some(Paths.get(props.getString("staging-dir"))))
 
-  val outputDepositDir: ScallopOption[File] = trailArg[File](
+  val outputDepositDir: ScallopOption[Path] = trailArg[Path](
     name = "output-deposit-dir",
     required = true,
     descr = "A directory to which the deposit directories are moved after the staging has been " +
@@ -111,9 +108,8 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
     required = true,
     descr = "The username (id) of the datamanger (archivist) performing this deposit")
 
-  // TODO duplicate???
-  validateFileExists(multiDepositDir.map(_.toJava))
-  validateFileIsDirectory(multiDepositDir.map(_.toJava))
+  validatePathExists(multiDepositDir)
+  validateFileIsDirectory(multiDepositDir.map(_.toFile))
   validate(multiDepositDir)(dir => {
     val instructionFile: File = multiDepositInstructionsFile(dir)
     if (!dir.contains(instructionFile))
@@ -122,9 +118,8 @@ class ScallopCommandLine(props: PropertiesConfiguration, args: Array[String]) ex
       Right(())
   })
 
-  // TODO duplicate with map(_.toJava) and with method calls, see above
-  validateFileExists(outputDepositDir.map(_.toJava))
-  validateFileIsDirectory(outputDepositDir.map(_.toJava))
+  validatePathExists(outputDepositDir)
+  validateFileIsDirectory(outputDepositDir.map(_.toFile))
 
   verify()
 }

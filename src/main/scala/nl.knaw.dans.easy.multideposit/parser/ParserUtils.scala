@@ -139,18 +139,9 @@ trait ParserUtils extends DebugEnhancedLogging {
    */
   def findPath(depositId: DepositId)(path: String)(implicit settings: Settings): Try[File] = {
     Try { multiDepositDir(depositId) / path }.filter(_.exists)
-      .orElse(Try { settings.multidepositDir / path }.filter(_.exists))
+      .orElse(Try { settings.multidepositDir / path }
+        .filter(_.exists)
+        .doIfSuccess(_ => logger.warn(s"path '$path' is not relative to its depositId '$depositId', but rather relative to the multideposit")))
       .recoverWith { case _ => Failure(new NoSuchFileException(s"unable to find path $path for depositor $depositId")) }
-
-//    val option1 = multiDepositDir(depositId) / path
-//    val option2 = settings.multidepositDir / path
-//
-//    (option1, option2) match {
-//      case (path1, _) if path1.exists => Success(path1)
-//      case (_, path2) if path2.exists =>
-//        logger.warn(s"path '$path' is not relative to its depositId '$depositId', but rather relative to the multideposit")
-//        path2
-//      case (_, _) => Paths.get(path)
-//    }
   }
 }

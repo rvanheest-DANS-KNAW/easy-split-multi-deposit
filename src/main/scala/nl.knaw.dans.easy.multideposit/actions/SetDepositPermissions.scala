@@ -15,7 +15,6 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import scala.collection.JavaConverters._
 import java.io.IOException
 import java.nio.file._
 import java.nio.file.attribute._
@@ -26,6 +25,7 @@ import nl.knaw.dans.easy.multideposit.{ UnitAction, _ }
 import nl.knaw.dans.lib.error._
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 
+import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }

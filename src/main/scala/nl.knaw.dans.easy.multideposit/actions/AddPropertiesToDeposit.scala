@@ -20,7 +20,6 @@ import java.{ util => ju }
 
 import nl.knaw.dans.easy.multideposit.model.Deposit
 import nl.knaw.dans.easy.multideposit.{ Action, Settings, _ }
-import resource._
 
 import scala.language.postfixOps
 import scala.util.control.NonFatal
@@ -57,9 +56,10 @@ case class AddPropertiesToDeposit(deposit: Deposit)(implicit settings: Settings)
     }
 
     Try { addProperties(props, emailaddress) }
-      .flatMap(_ => Using.fileWriter(encoding)(stagingPropertiesFile(deposit.depositId).toJava)
-        .map(out => props.store(out, ""))
-        .tried)
+      .map(_ => stagingPropertiesFile(deposit.depositId)
+          .createIfNotExists(createParents = true)
+          .bufferedWriter
+          .foreach(props.store(_, "")))
       .recoverWith {
         case NonFatal(e) => Failure(ActionException(deposit.row, s"Could not write properties to file: $e", e))
       }

@@ -40,12 +40,9 @@ case class AddPropertiesToDeposit(deposit: Deposit)(implicit settings: Settings)
     settings.ldap.query(deposit.depositorUserId)(attrs => Option(attrs.get("dansState")).exists(_.get().toString == "ACTIVE"))
       .flatMap {
         case Seq() => Failure(ActionException(deposit.row, s"depositorUserId '${ deposit.depositorUserId }' is unknown"))
-        case Seq(head) => Success(head)
+        case Seq(true) => Success(())
+        case Seq(false) => Failure(ActionException(deposit.row, s"The depositor '${ deposit.depositorUserId }' is not an active user"))
         case _ => Failure(ActionException(deposit.row, s"There appear to be multiple users with id '${ deposit.depositorUserId }'"))
-      }
-      .flatMap {
-        case true => Success(())
-        case false => Failure(ActionException(deposit.row, s"The depositor '${ deposit.depositorUserId }' is not an active user"))
       }
   }
 

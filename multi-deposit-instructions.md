@@ -47,21 +47,23 @@ The supported metadata elements are subdivided into the following groups:
   `DC_CREATOR`*, `DC_CONTRIBUTOR`*, `DC_SUBJECT`, `DC_PUBLISHER`,
   `DC_TYPE`, `DC_FORMAT`, `DC_IDENTIFIER`, `DC_IDENTIFIER_TYPE`, `DC_SOURCE`, `DC_LANGUAGE`;
 * The following [Dublin Core Term elements]: `DCT_ALTERNATIVE`, `DCT_SPATIAL`,
-  `DCT_TEMPORAL`, `DCT_RIGHTSHOLDER`;
+  `DCT_TEMPORAL`, `DCT_RIGHTSHOLDER`, `DCT_DATE`, `DCT_DATE_QUALIFIER`;
 * DANS specific specializations of Dublin Core: `DCX_CREATOR_TITLES`, 
   `DCX_CREATOR_INITIALS`, `DCX_CREATOR_INSERTIONS`,
-  `DCX_CREATOR_SURNAME`, `DCX_CREATOR_DAI`, `DCX_CREATOR_ORGANIZATION`,
+  `DCX_CREATOR_SURNAME`, `DCX_CREATOR_DAI`, `DCX_CREATOR_ORGANIZATION`, `DCX_CREATOR_ROLE`,
   `DCX_CONTRIBUTOR_TITLES`, `DCX_CONTRIBUTOR_INITIALS`,
   `DCX_CONTRIBUTOR_INSERTIONS`, `DCX_CONTRIBUTOR_SURNAME`, `DCX_CONTRIBUTOR_DAI`,
-  `DCX_CONTRIBUTOR_ORGANIZATION`,
+  `DCX_CONTRIBUTOR_ORGANIZATION`, `DCX_CONTRIBUTOR_ROLE`,
   `DCX_SPATIAL_SCHEME`, `DCX_SPATIAL_X`, `DCX_SPATIAL_Y`, `DCX_SPATIAL_NORTH`,
   `DCX_SPATIAL_SOUTH`, `DCX_SPATIAL_EAST`, `DCX_SPATIAL_WEST`,
   `DCT_TEMPORAL_SCHEME`, `DC_SUBJECT_SCHEME`,
   `DCX_RELATION_QUALIFIER`, `DCX_RELATION_TITLE`, `DCX_RELATION_LINK`
 * Other DANS specific metadata elements: `DDM_CREATED`, `DDM_AVAILABLE`,
   `DDM_AUDIENCE`, `DDM_ACCESSRIGHTS`, `DEPOSITOR_ID`
+* Fields that specify special properties for a file: `FILE_PATH`, `FILE_TITLE` and
+  `FILE_ACCESSIBILITY`
 * Fields that specify the relation to a streaming surrogate on the Springfield
-  platform: `SF_DOMAIN`, `SF_USER`, `SF_COLLECTION`, `SF_ACCESSIBILITY`
+  platform: `SF_DOMAIN`, `SF_USER`, `SF_COLLECTION`, and `SF_PLAY_MODE`
 * The use of `DC_CREATOR` and `DC_CONTRIBUTOR` is deprecated in favor of the new
   `DCX_CREATOR_*` and `DCX_CONTRIBUTOR_*` fields.
 
@@ -80,6 +82,9 @@ The `DCX_CREATOR_*` and `DCX_CONTRIBUTOR_*` elements follow the semantics of the
 corresponding Dublin Core elements. The only difference is that the description is
 split into subfields that are fairly self-describing.
 
+Note that the columns `DCX_CREATOR_ROLE` and `DCX_CONTRIBUTOR_ROLE` have to contain values from
+the [DataCite ContributorType list].
+
 #### Spatial
 `DCT_SPATIAL` can contain any value that can be construed as "spatial characteristic" of the
 dataset. A more specific value can be provided by means of the `DCX_SPATIAL_*` elements.
@@ -97,7 +102,7 @@ The generic `relation` element from Dublin Core is not supported. Only relations
 form of URL's are accepted. `DCX_RELATION_QUALIFIER` is one of the 
 [refinements of the relation element]. `DCX_RELATION_TITLE` is the title of the 
 hyperlink if it is displayed on a web page and `DCX_RELATION_LINK` the URL to the
-related resource.
+related resource. If a link is provided, a title should be given to provide context.
 
 #### Identifier
 `DC_IDENTIFIER_TYPE` gives extra meaning to the `DC_IDENTIFIER`. It can only have either one of the
@@ -108,13 +113,32 @@ following four values: {`ISBN`, `ISSN`, `NWO-PROJECTNR`, `ARCHIS-ZAAK-IDENTIFICA
 `AV_SUBTITLE_LANGUAGE` should be formatted as an [ISO 639-1](https://www.loc.gov/standards/iso639-2/php/code_list.php).
 
 #### Format
-`DC_FORMAT` can either have free text or be one of the elements listed in the [formats list](src/main/assembly/dist/cfg/formats.txt).
+`DC_FORMAT` can either have free text or be one of the elements listed in the [formats list](src/main/assembly/dist/cfg/acceptedMediaTypes.txt).
 In the latter case an extra `xsi:type` is added to the resulting DDM xml.
 
 #### Type
 `DC_TYPE` can only have a value from the set {`Collection`, `Dataset`, `Event`, `Image`, 
 `InteractiveResource`, `MovingImage`, `PhysicalObject`, `Service`, `Software`, `Sound`, 
-`StillImage`, `Text`}. If no value is given, `Dataset` is choosen as a default.
+`StillImage`, `Text`}. If no value is given, `Dataset` is chosen as a default.
+
+#### Date
+`DCT_DATE_QUALIFIER` can only have a value from the set {`valid`, `issued`, `modified`,
+`dateAccepted`, `dateCopyrighted`, `dateSubmitted`}. If one of these values is given, `DCT_DATE` has
+to be a date, formatted as `yyyy-mm-dd`. If `DCT_DATE_QUALIFIER` isn't provided but the related
+`DCT_DATE` is, the latter is considered to be free text.
+
+#### File
+`FILE_PATH`, `FILE_TITLE` and `FILE_ACCESSIBILITY` describe special properties of a file. For every
+file that is registered here, at least `FILE_PATH` and either one of `FILE_TITLE` and `FILE_ACCESSIBILITY`
+need to be provided. A file can only have one value for `FILE_TITLE` or `FILE_ACCESSIBILITY`.
+`FILE_ACCESSIBILITY` provides a way to override the file-accessibility from the default
+`DDM_ACCESSRIGHTS` for the specified file only.
+The information found in the `FILE_*` columns is put into `files.xml` to better describe the file
+at hand. The `FILE_TITLE` relation is put inside a `dcterms:title` element; the `FILE_ACCESSIBILITY`
+relation is put inside the `accessibleToRights` element. Note that if no `FILE_TITLE` is described
+for an audio/video file (see section on Springfield below), the file's name itself is used here.
+Similar for `FILE_ACCESSIBILITY`: if it is not given for an audio/video file, the dataset's default
+`DDM_ACCESSRIGHTS` is used instead.
 
 #### Springfield
 [Springfield Web TV] is the platform that DANS uses to host the streaming surrogates (versions)
@@ -134,17 +158,18 @@ a audio or video presentation contained in the dataset:
   to this presentation by identifying them as such (and providing extra metadata) in `files.xml`.
 * The data provided in `SF_DOMAIN`, `SF_USER` and `SF_COLLECTION` are stored for further processing
   in the `deposit.properties` file.
-* `SF_ACCESSIBILITY` provides a way to override the file-accessibility from the default
-   `DDM_ACCESSRIGHTS` for all A/V file.
-* The columns `AV_FILE`, `AV_FILE_TITLE`, `AV_SUBTITLES` and `AV_SUBTITLES_LANGUAGE` are used to
-  provide extra metadata specific to audio/video files. For a path to a A/V file in `AV_FILE`,
-  the user can specify at most one title in `AV_FILE_TITLE` and one or more combinations of subtitles
-  and the corresponding language tag in `AV_SUBTITLES` and `AV_SUBTITLES_LANGUAGE` respectively.
-  Note that the latter has to be formatted as an [ISO 639-1](https://www.loc.gov/standards/iso639-2/php/code_list.php).
+* `SF_PLAY_MODE` specifies how the video's are played in Springfield. The value must either be
+  `continuous` or `menu`. If no value is specified for a dataset with video/audio, the default will
+  be set to `continuous`. This value is only allowed if `SF_DOMAIN`, `SF_USER` and `SF_COLLECTION`
+  are provided as well.
+* The columns `AV_FILE_PATH`, `AV_SUBTITLES` and `AV_SUBTITLES_LANGUAGE` are used to provide extra
+  metadata specific to audio/video files. For a path to a A/V file in `AV_FILE_PATH`, the user can
+  specify one or more combinations of subtitles and the corresponding language tag in `AV_SUBTITLES`
+  and `AV_SUBTITLES_LANGUAGE` respectively. Note that the latter has to be formatted as an [ISO 639-1](https://www.loc.gov/standards/iso639-2/php/code_list.php).
 * The information found in the `AV_*` columns is put into `files.xml` to better describe the file
-  at hand. The `AV_FILE_TITLE` relation is put inside a `dcterms:title` element; the `AV_SUBTITLE`
-  and `AV_SUBTITLE_LANGUAGE` are declared in a `dcterms:relation` and its `xml:lang` attribute
-  respectively.
+  at hand. The `AV_SUBTITLE` and `AV_SUBTITLE_LANGUAGE` are declared in a `dcterms:relation` and
+  its `xml:lang` attribute respectively.
+* If SF_* fields are present, a `DC_FORMAT` for audio/ or video/ Internet Media Types is expected  
 
 
 3. File Processing Instructions
@@ -234,3 +259,4 @@ combined with the `DATASET` value.
 [Rijksdriehoekscoördinaten]: https://nl.wikipedia.org/wiki/Rijksdriehoeksco%C3%B6rdinaten
 [refinements of the relation element]: http://dublincore.org/documents/usageguide/qualifiers.shtml#isVersionOf
 [Springfield Web TV]: http://noterik.github.io/
+[DataCite ContributorType list]: http://schema.datacite.org/meta/kernel-4.0/include/datacite-contributorType-v4.xsd

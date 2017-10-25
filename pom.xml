@@ -22,12 +22,12 @@
     <parent>
         <groupId>nl.knaw.dans.shared</groupId>
         <artifactId>dans-scala-prototype</artifactId>
-        <version>1.44</version>
+        <version>1.56</version>
     </parent>
 
     <groupId>nl.knaw.dans.easy</groupId>
     <artifactId>easy-split-multi-deposit</artifactId>
-    <version>1.x-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
 
     <inceptionYear>2016</inceptionYear>
     <name>EASY Split Multi-Deposit</name>
@@ -35,7 +35,7 @@
 
     <properties>
         <main-class>nl.knaw.dans.easy.multideposit.Main</main-class>
-        <easy.ddm.version>3.3</easy.ddm.version>
+        <easy.ddm.version>3.6.2</easy.ddm.version>
     </properties>
 
     <scm>
@@ -194,4 +194,32 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>rpm</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <file>
+                    <exists>/usr/local/bin/rpm</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>rpm-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-rpm</id>
+                                <goals>
+                                    <goal>attached-rpm</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

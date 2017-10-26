@@ -15,10 +15,9 @@
  */
 package nl.knaw.dans.easy.multideposit.parser
 
-import java.nio.file.Paths
-
+import better.files.File
 import nl.knaw.dans.easy.multideposit.model.{ FileAccessRights, FileDescriptor }
-import nl.knaw.dans.easy.multideposit.{ FileExtensions, ParseException, Settings, UnitSpec }
+import nl.knaw.dans.easy.multideposit.{ ParseException, Settings, UnitSpec }
 import nl.knaw.dans.lib.error.CompositeException
 import org.scalatest.BeforeAndAfterEach
 
@@ -42,12 +41,12 @@ trait FileDescriptorTestObjects {
   )
 
   lazy val fileDescriptors = Map(
-    settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg") ->
+    settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg" ->
       FileDescriptor(
         title = Option("video about the centaur meteorite"),
         accessibility = Option(FileAccessRights.RESTRICTED_GROUP)
       ),
-    settings.multidepositDir.resolve("ruimtereis01/path/to/a/random/video/hubble.mpg") ->
+    settings.multidepositDir / "ruimtereis01" / "path" / "to" / "a" / "random" / "video" / "hubble.mpg" ->
       FileDescriptor(
         title = Option.empty,
         accessibility = Option(FileAccessRights.RESTRICTED_GROUP)
@@ -59,11 +58,11 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    Paths.get(getClass.getResource("/allfields/input").toURI).copyDir(settings.multidepositDir)
+    File(getClass.getResource("/allfields/input").toURI).copyTo(settings.multidepositDir, overwrite = true)
   }
 
   override implicit val settings: Settings = Settings(
-    multidepositDir = testDir.resolve("md").toAbsolutePath
+    multidepositDir = testDir / "md"
   )
   private val parser = FileDescriptorParser()
 
@@ -81,7 +80,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
 
     inside(extractFileDescriptors(row1 :: row2 :: Nil, 2, "ruimtereis01")) {
       case Success(result) => result should (have size 1 and contain only
@@ -101,7 +100,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
 
     inside(extractFileDescriptors(row1 :: row2 :: Nil, 2, "ruimtereis01")) {
       case Success(result) => result should (have size 1 and contain only file -> FileDescriptor())
@@ -115,7 +114,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
 
     inside(extractFileDescriptors(row :: Nil, 2, "ruimtereis01")) {
       case Success(result) => result should (have size 1 and contain only
@@ -130,7 +129,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> "KNOWN"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
 
     inside(extractFileDescriptors(row :: Nil, 2, "ruimtereis01")) {
       case Success(result) => result should (have size 1 and contain only
@@ -150,7 +149,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
     val msg = s"FILE_TITLE defined multiple values for file '$file': [title1, title2]"
 
     extractFileDescriptors(row1 :: row2 :: Nil, 2, "ruimtereis01") should matchPattern {
@@ -170,7 +169,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> "ANONYMOUS"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
     val msg = s"FILE_ACCESSIBILITY defined multiple values for file '$file': [KNOWN, ANONYMOUS]"
 
     extractFileDescriptors(row1 :: row2 :: Nil, 2, "ruimtereis01") should matchPattern {
@@ -190,7 +189,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> "ANONYMOUS"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
     val msg1 = s"FILE_TITLE defined multiple values for file '$file': [title1, title2]"
     val msg2 = s"FILE_ACCESSIBILITY defined multiple values for file '$file': [KNOWN, ANONYMOUS]"
 
@@ -206,7 +205,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> "KNOWN"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
       case Success((`file`, Some("some title"), Some(FileAccessRights.KNOWN))) =>
     }
@@ -220,7 +219,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
     )
 
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
-      case Failure(ParseException(2, "FILE_PATH 'path/that/does/not/exist.txt' does not exist", _)) =>
+      case Failure(ParseException(2, "FILE_PATH does not represent a valid path", _)) =>
     }
   }
 
@@ -231,7 +230,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> "KNOWN"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag"
     val msg = s"FILE_PATH '$file' is not a file"
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
       case Failure(ParseException(2, `msg`, _)) =>
@@ -245,7 +244,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
       case Success((`file`, Some("some title"), None)) =>
     }
@@ -259,7 +258,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
     )
 
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
-      case Failure(ParseException(2, "FILE_PATH 'path/that/does/not/exist.txt' does not exist", _)) =>
+      case Failure(ParseException(2, "FILE_PATH does not represent a valid path", _)) =>
     }
   }
 
@@ -270,7 +269,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag"
     val msg = s"FILE_PATH '$file' is not a file"
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
       case Failure(ParseException(2, `msg`, _)) =>
@@ -297,9 +296,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
     )
 
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
-      case Failure(CompositeException(
-      ParseException(2, "FILE_PATH 'path/that/does/not/exist.txt' does not exist", _) ::
-        ParseException(2, "Value 'invalid' is not a valid file accessright", _) :: Nil)) =>
+      case Failure(ParseException(2, "FILE_PATH does not represent a valid path", _)) =>
     }
   }
 
@@ -310,7 +307,7 @@ class FileDescriptorParserSpec extends UnitSpec with AudioVideoTestObjects with 
       "FILE_ACCESSIBILITY" -> "invalid"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag"
     val msg = s"FILE_PATH '$file' is not a file"
     fileDescriptor("ruimtereis01")(2)(row).value should matchPattern {
       case Failure(CompositeException(

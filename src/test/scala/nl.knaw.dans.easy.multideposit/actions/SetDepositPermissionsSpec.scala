@@ -15,8 +15,8 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.attribute.{ PosixFileAttributes, PosixFilePermission, UserPrincipalNotFoundException }
-import java.nio.file.{ FileSystemException, Files }
+import java.nio.file.FileSystemException
+import java.nio.file.attribute.{ PosixFilePermission, UserPrincipalNotFoundException }
 
 import nl.knaw.dans.easy.multideposit.{ Settings, UnitSpec, _ }
 import org.scalatest.BeforeAndAfterEach
@@ -41,26 +41,26 @@ class SetDepositPermissionsSpec extends UnitSpec with BeforeAndAfterEach {
   }
 
   implicit val settings: Settings = Settings(
-    multidepositDir = testDir.resolve("md"),
-    stagingDir = testDir.resolve("sd"),
+    multidepositDir = testDir / "md",
+    stagingDir = testDir / "sd",
     depositPermissions = DepositPermissions("rwxrwx---", userGroup)
   )
 
   private val depositId = "ruimtereis01"
 
   private val base = stagingDir(depositId)
-  private val folder1 = base.resolve("folder1")
-  private val folder2 = base.resolve("folder2")
-  private val file1 = base.resolve("file1.txt")
-  private val file2 = folder1.resolve("file2.txt")
-  private val file3 = folder1.resolve("file3.txt")
-  private val file4 = folder2.resolve("file4.txt")
+  private val folder1 = base / "folder1"
+  private val folder2 = base / "folder2"
+  private val file1 = base / "file1.txt"
+  private val file2 = folder1 / "file2.txt"
+  private val file3 = folder1 / "file3.txt"
+  private val file4 = folder2 / "file4.txt"
   private val filesAndFolders = List(base, folder1, folder2, file1, file2, file3, file4)
 
   override def beforeEach(): Unit = {
-    Files.createDirectories(base)
-    Files.createDirectories(folder1)
-    Files.createDirectories(folder2)
+    base.createDirectories()
+    folder1.createDirectories()
+    folder2.createDirectories()
 
     file1.write("abcdef")
     file2.write("defghi")
@@ -68,8 +68,8 @@ class SetDepositPermissionsSpec extends UnitSpec with BeforeAndAfterEach {
     file4.write("jklmno")
 
     for (file <- filesAndFolders) {
-      file.toFile shouldBe readable
-      file.toFile shouldBe writable
+      file.toJava shouldBe readable
+      file.toJava shouldBe writable
     }
   }
 
@@ -80,7 +80,7 @@ class SetDepositPermissionsSpec extends UnitSpec with BeforeAndAfterEach {
     SetDepositPermissions(1, depositId).execute() shouldBe a[Success[_]]
 
     for (file <- filesAndFolders) {
-      Files.getPosixFilePermissions(file) should {
+      file.permissions should {
         have size 6 and contain only(
           PosixFilePermission.OWNER_READ,
           PosixFilePermission.OWNER_WRITE,
@@ -94,15 +94,14 @@ class SetDepositPermissionsSpec extends UnitSpec with BeforeAndAfterEach {
           PosixFilePermission.OTHERS_EXECUTE
         )
       }
-
-      Files.readAttributes(file, classOf[PosixFileAttributes]).group().getName shouldBe userGroup
+      file.groupName shouldBe userGroup
     }
   }
 
   it should "fail if the group name does not exist" in {
     implicit val settings: Settings = Settings(
-      multidepositDir = testDir.resolve("md"),
-      stagingDir = testDir.resolve("sd"),
+      multidepositDir = testDir / "md",
+      stagingDir = testDir / "sd",
       depositPermissions = DepositPermissions("rwxrwx---", "non-existing-group-name")
     )
 
@@ -113,8 +112,8 @@ class SetDepositPermissionsSpec extends UnitSpec with BeforeAndAfterEach {
 
   it should "fail if the access permissions are invalid" in {
     implicit val settings: Settings = Settings(
-      multidepositDir = testDir.resolve("md"),
-      stagingDir = testDir.resolve("sd"),
+      multidepositDir = testDir / "md",
+      stagingDir = testDir / "sd",
       depositPermissions = DepositPermissions("abcdefghi", "admin")
     )
 
@@ -125,8 +124,8 @@ class SetDepositPermissionsSpec extends UnitSpec with BeforeAndAfterEach {
 
   it should "fail if the user is not part of the given group" in {
     implicit val settings: Settings = Settings(
-      multidepositDir = testDir.resolve("md"),
-      stagingDir = testDir.resolve("sd"),
+      multidepositDir = testDir / "md",
+      stagingDir = testDir / "sd",
       depositPermissions = DepositPermissions("rwxrwx---", unrelatedGroup)
     )
 

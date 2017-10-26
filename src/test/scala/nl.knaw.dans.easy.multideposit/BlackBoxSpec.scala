@@ -15,14 +15,12 @@
  */
 package nl.knaw.dans.easy.multideposit
 
-import java.nio.file.{ Files, Path, Paths }
 import javax.naming.directory.{ Attributes, BasicAttribute, BasicAttributes }
 
+import better.files.File
+import better.files.File._
 import org.scalamock.scalatest.MockFactory
-import resource.managed
 
-import scala.collection.JavaConverters._
-import scala.io.Source
 import scala.util.{ Failure, Properties, Success }
 import scala.xml.transform.{ RewriteRule, RuleTransformer }
 import scala.xml.{ Elem, Node, NodeSeq, XML }
@@ -31,17 +29,17 @@ import scala.xml.{ Elem, Node, NodeSeq, XML }
 // http://www.scalatest.org/user_guide/sharing_tests
 class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
 
-  private val formatsFile: Path = Paths.get("src/main/assembly/dist/cfg/acceptedMediaTypes.txt").toAbsolutePath
+  private val formatsFile: File = currentWorkingDirectory / "src" / "main" / "assembly" / "dist" / "cfg" / "acceptedMediaTypes.txt"
   private val formats =
-    if (Files.exists(formatsFile)) managed(Source.fromFile(formatsFile.toFile)).acquireAndGet(_.getLines.map(_.trim).toSet)
+    if (formatsFile.exists) formatsFile.lines.map(_.trim).toSet
     else fail("Cannot find file: acceptedMediaTypes.txt")
 
   "acceptedMediaFiles" should "contain certain Formats" in {
     formats.contains("audio/mpeg3") shouldBe true
   }
 
-  private val allfields = testDir.resolve("md/allfields").toAbsolutePath
-  private val invalidCSV = testDir.resolve("md/invalidCSV").toAbsolutePath
+  private val allfields = testDir / "md" / "allfields"
+  private val invalidCSV = testDir / "md" / "invalidCSV"
 
   /*
     Note to future developers:
@@ -54,9 +52,8 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
     function is called before the shared tests are set up or ran.
    */
   def beforeAll(): Unit = {
-    Paths.get(getClass.getResource("/allfields/input").toURI).copyDir(allfields)
-    Paths.get(getClass.getResource("/invalidCSV/input").toURI).copyDir(invalidCSV)
-
+    File(getClass.getResource("/allfields/input").toURI).copyTo(allfields)
+    File(getClass.getResource("/invalidCSV/input").toURI).copyTo(invalidCSV)
   }
 
   private def doNotRunOnTravis() = {
@@ -75,16 +72,17 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
 
   def allfieldsSpec(): Unit = {
     val ldap = mock[Ldap]
+    val outputDir = (testDir / "od").createIfNotExists(asDirectory = true, createParents = true)
     implicit val settings: Settings = Settings(
       multidepositDir = allfields,
-      stagingDir = testDir.resolve("sd").toAbsolutePath,
-      outputDepositDir = testDir.resolve("od").toAbsolutePath,
+      stagingDir = testDir / "sd",
+      outputDepositDir = outputDir,
       datamanager = "easyadmin",
       depositPermissions = DepositPermissions("rwxrwx---", getFileSystemGroup),
       formats = formats,
       ldap = ldap
     )
-    val expectedOutputDir = Paths.get(getClass.getResource("/allfields/output").toURI)
+    val expectedOutputDir = File(getClass.getResource("/allfields/output").toURI)
 
     def createDatamanagerAttributes: BasicAttributes = {
       new BasicAttributes() {
@@ -106,25 +104,23 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
       Main.run shouldBe a[Success[_]]
     }
 
-    val expectedDataContentRuimtereis01 = Set("data/", "ruimtereis01_verklaring.txt", "path/",
-      "to/", "a/", "random/", "video/", "hubble.mpg", "reisverslag/", "centaur.mpg", "centaur.srt",
+    val expectedDataContentRuimtereis01 = Set("ruimtereis01_verklaring.txt", "path/", "to/", "a/",
+      "random/", "video/", "hubble.mpg", "reisverslag/", "centaur.mpg", "centaur.srt",
       "centaur-nederlands.srt", "deel01.docx", "deel01.txt", "deel02.txt", "deel03.txt")
-    val expectedDataContentRuimtereis02 = Set("data/", "hubble-wiki-en.txt", "hubble-wiki-nl.txt",
-      "path/", "to/", "images/", "Hubble_01.jpg", "Hubbleshots.jpg")
-    val expectedDataContentRuimtereis03 = Set("data/")
-    val expectedDataContentRuimtereis04 = Set("data/", "Quicksort.hs", "path/", "to/", "a/",
+    val expectedDataContentRuimtereis02 = Set("hubble-wiki-en.txt", "hubble-wiki-nl.txt", "path/",
+      "to/", "images/", "Hubble_01.jpg", "Hubbleshots.jpg")
+    val expectedDataContentRuimtereis03 = Set.empty[String]
+    val expectedDataContentRuimtereis04 = Set("Quicksort.hs", "path/", "to/", "a/",
       "random/", "file/", "file.txt", "sound/", "chicken.mp3")
 
     def bagContents(bagName: String, dataContent: Set[String]): Unit = {
-      val bag = settings.outputDepositDir.resolve(s"allfields-$bagName/bag")
-      val expBag = expectedOutputDir.resolve(s"input-$bagName/bag")
+      val bag = settings.outputDepositDir / s"allfields-$bagName" / "bag"
+      val expBag = expectedOutputDir / s"input-$bagName" / "bag"
 
       it should "check the files present in the bag" in {
         doNotRunOnTravis()
 
-        managed(Files.list(bag))
-          .acquireAndGet(_.iterator().asScala.toList)
-          .map(_.getFileName.toString) should contain only(
+        bag.list.map(_.name).toList should contain only(
           "bag-info.txt",
           "bagit.txt",
           "manifest-sha1.txt",
@@ -136,63 +132,59 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
       it should "check bag-info.txt" in {
         doNotRunOnTravis()
 
-        val bagInfo = bag.resolve("bag-info.txt")
-        val expBagInfo = expBag.resolve("bag-info.txt")
+        val bagInfo = bag / "bag-info.txt"
+        val expBagInfo = expBag / "bag-info.txt"
 
         // skipping the Bagging-Date which is different every time
-        bagInfo.read().lines.toSeq should contain allElementsOf
-          expBagInfo.read().lines.filterNot(_ contains "Bagging-Date").toSeq
+        bagInfo.lines should contain allElementsOf expBagInfo.lines.filterNot(_ contains "Bagging-Date")
       }
 
       it should "check bagit.txt" in {
         doNotRunOnTravis()
 
-        val bagit = bag.resolve("bagit.txt")
-        val expBagit = expBag.resolve("bagit.txt")
+        val bagit = bag / "bagit.txt"
+        val expBagit = expBag / "bagit.txt"
 
-        bagit.read().lines.toSeq should contain allElementsOf expBagit.read().lines.toSeq
+        bagit.lines should contain allElementsOf expBagit.lines
       }
 
       it should "check manifest-sha1.txt" in {
         doNotRunOnTravis()
 
-        val manifest = bag.resolve("manifest-sha1.txt")
-        val expManifest = expBag.resolve("manifest-sha1.txt")
+        val manifest = bag / "manifest-sha1.txt"
+        val expManifest = expBag / "manifest-sha1.txt"
 
-        manifest.read().lines.toSeq should contain allElementsOf expManifest.read().lines.toSeq
+        manifest.lines should contain allElementsOf expManifest.lines
       }
 
       it should "check tagmanifest-sha1.txt" in {
         doNotRunOnTravis()
 
-        val tagManifest = bag.resolve("tagmanifest-sha1.txt")
-        val expTagManifest = expBag.resolve("tagmanifest-sha1.txt")
+        val tagManifest = bag / "tagmanifest-sha1.txt"
+        val expTagManifest = expBag / "tagmanifest-sha1.txt"
 
         // skipping bag-info.txt and manifest-sha1.txt which are different every time
         // due to the Bagging-Date and 'available' in metadata/dataset.xml
-        tagManifest.read().lines.toSeq should contain allElementsOf
-          expTagManifest.read().lines
+        tagManifest.lines should contain allElementsOf expTagManifest.lines
             .filterNot(_ contains "bag-info.txt")
-            .filterNot(_ contains "manifest-sha1.txt").toSeq
+            .filterNot(_ contains "manifest-sha1.txt")
       }
 
       it should "check the files in data/" in {
         doNotRunOnTravis()
 
-        val dataDir = bag.resolve("data/")
-        dataDir.toFile should exist
+        val dataDir = bag / "data"
+        dataDir.toJava should exist
         dataDir.listRecursively().map {
-          case file if Files.isDirectory(file) => file.getFileName.toString + "/"
-          case file => file.getFileName.toString
-        } should contain theSameElementsAs dataContent
+          case file if file.isDirectory => file.name + "/"
+          case file => file.name
+        }.toList should contain theSameElementsAs dataContent
       }
 
       it should "check the files in metadata/" in {
         doNotRunOnTravis()
 
-        managed(Files.list(bag.resolve("metadata")))
-          .acquireAndGet(_.iterator().asScala.toList)
-          .map(_.getFileName.toString) should contain only("dataset.xml", "files.xml")
+        (bag / "metadata").list.map(_.name).toList should contain only("dataset.xml", "files.xml")
       }
 
       it should "check metadata/dataset.xml" in {
@@ -207,8 +199,8 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
           }
         })
 
-        val datasetXml = XML.loadFile(bag.resolve("metadata/dataset.xml").toFile)
-        val expDatasetXml = XML.loadFile(expBag.resolve("metadata/dataset.xml").toFile)
+        val datasetXml = XML.loadFile((bag / "metadata" / "dataset.xml").toJava)
+        val expDatasetXml = XML.loadFile((expBag / "metadata" / "dataset.xml").toJava)
         val datasetTransformer = removeElemByName("available")
 
         // skipping the available field here
@@ -221,8 +213,8 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
       it should "check metadata/files.xml" in {
         doNotRunOnTravis()
 
-        val filesXml = XML.loadFile(bag.resolve("metadata/files.xml").toFile)
-        val expFilesXml = XML.loadFile(expBag.resolve("metadata/files.xml").toFile)
+        val filesXml = XML.loadFile((bag / "metadata" / "files.xml").toJava)
+        val expFilesXml = XML.loadFile((expBag / "metadata" / "files.xml").toJava)
 
         val files = filesXml \ "file"
         val expFiles = expFilesXml \ "file"
@@ -242,15 +234,13 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
       it should "check deposit.properties" in {
         doNotRunOnTravis()
 
-        val props = settings.outputDepositDir.resolve(s"allfields-$bagName/deposit.properties")
-        val expProps = expectedOutputDir.resolve(s"input-$bagName/deposit.properties")
+        val props = settings.outputDepositDir / s"allfields-$bagName" / "deposit.properties"
+        val expProps = expectedOutputDir / s"input-$bagName" / "deposit.properties"
 
         // skipping comment lines, as well as the line with randomized bag-id
-        props.read().lines.toSeq should contain allElementsOf
-          expProps.read().lines
+        props.lines should contain allElementsOf expProps.lines
             .filterNot(_ startsWith "#")
             .filterNot(_ contains "bag-store.bag-id")
-            .toSeq
       }
     }
 
@@ -279,7 +269,7 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
           " - row 2: Value 'random test data' is not a valid type",
           " - row 2: Value 'NL' is not a valid value for DC_LANGUAGE",
           " - row 2: DCT_DATE value 'Text with Qualifier' does not represent a date",
-          " - row 2: FILE_PATH 'path/to/audiofile/that/does/not/exist.mp3' does not exist",
+          " - row 2: FILE_PATH does not represent a valid path",
           " - row 2: Missing value for: SF_USER",
           " - row 3: DDM_AVAILABLE value 'invalid-date' does not represent a date",
           " - row 3: Missing value for: DC_IDENTIFIER",

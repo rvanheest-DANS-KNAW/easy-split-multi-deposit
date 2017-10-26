@@ -15,8 +15,8 @@
  */
 package nl.knaw.dans.easy.multideposit
 
-import java.nio.file.{ Files, Path, Paths }
-
+import better.files._
+import better.files.File._
 import nl.knaw.dans.common.lang.dataset.AccessCategory
 import nl.knaw.dans.easy.multideposit.model._
 import org.joda.time.DateTime
@@ -24,11 +24,10 @@ import org.scalatest._
 
 abstract class UnitSpec extends FlatSpec with Matchers with OptionValues with Inside {
 
-  lazy val testDir: Path = {
-    val path = Paths.get(s"target/test/${ getClass.getSimpleName }").toAbsolutePath
-    path.deleteDirectory()
-    Files.createDirectories(path)
-    path
+  lazy val testDir: File = {
+    val path = currentWorkingDirectory / "target" / "test" / getClass.getSimpleName
+    if (path.exists) path.delete()
+    path.createDirectories()
   }
 
   def testDeposit1: Deposit = {
@@ -57,12 +56,12 @@ abstract class UnitSpec extends FlatSpec with Matchers with OptionValues with In
         subjects = List(Subject("astronomie"), Subject("ruimtevaart"), Subject("planetoïden"))
       ),
       files = Map(
-        testDir.resolve("md/ruimtereis01/reisverslag/centaur.mpg") -> FileDescriptor(Option("flyby of centaur"))
+        testDir / "md" / "ruimtereis01" / "reisverslag" / "centaur.mpg" -> FileDescriptor(Option("flyby of centaur"))
       ),
       audioVideo = AudioVideo(
         springfield = Option(Springfield("dans", "janvanmansum", "Jans-test-files", PlayMode.Menu)),
         avFiles = Map(
-          testDir.resolve("md/ruimtereis01/reisverslag/centaur.mpg") -> Set(Subtitles(testDir.resolve("md/ruimtereis01/reisverslag/centaur.srt"), Option("en")))
+          testDir / "md" / "ruimtereis01" / "reisverslag" / "centaur.mpg" -> Set(Subtitles(testDir / "md" / "ruimtereis01" / "reisverslag" / "centaur.srt", Option("en")))
         )
       )
     )
@@ -90,7 +89,7 @@ abstract class UnitSpec extends FlatSpec with Matchers with OptionValues with In
         identifiers = List(Identifier("id1234"))
       ),
       files = Map(
-        testDir.resolve("md/ruimtereis02/path/to/images/Hubble_01.jpg") -> FileDescriptor(Some("Hubble"), Some(FileAccessRights.RESTRICTED_REQUEST))
+        testDir / "md" / "ruimtereis02" / "path" / "to" / "images" / "Hubble_01.jpg" -> FileDescriptor(Some("Hubble"), Some(FileAccessRights.RESTRICTED_REQUEST))
       )
     )
   }

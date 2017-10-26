@@ -20,7 +20,6 @@ import java.{ util => ju }
 
 import nl.knaw.dans.easy.multideposit.model.Deposit
 import nl.knaw.dans.easy.multideposit.{ Action, Settings, _ }
-import resource._
 
 import scala.language.postfixOps
 import scala.util.control.NonFatal
@@ -41,12 +40,9 @@ case class AddPropertiesToDeposit(deposit: Deposit)(implicit settings: Settings)
     settings.ldap.query(deposit.depositorUserId)(attrs => Option(attrs.get("dansState")).exists(_.get().toString == "ACTIVE"))
       .flatMap {
         case Seq() => Failure(ActionException(deposit.row, s"depositorUserId '${ deposit.depositorUserId }' is unknown"))
-        case Seq(head) => Success(head)
+        case Seq(true) => Success(())
+        case Seq(false) => Failure(ActionException(deposit.row, s"The depositor '${ deposit.depositorUserId }' is not an active user"))
         case _ => Failure(ActionException(deposit.row, s"There appear to be multiple users with id '${ deposit.depositorUserId }'"))
-      }
-      .flatMap {
-        case true => Success(())
-        case false => Failure(ActionException(deposit.row, s"The depositor '${ deposit.depositorUserId }' is not an active user"))
       }
   }
 
@@ -57,9 +53,10 @@ case class AddPropertiesToDeposit(deposit: Deposit)(implicit settings: Settings)
     }
 
     Try { addProperties(props, emailaddress) }
-      .flatMap(_ => Using.fileWriter(encoding)(stagingPropertiesFile(deposit.depositId).toFile)
-        .map(out => props.store(out, ""))
-        .tried)
+      .map(_ => stagingPropertiesFile(deposit.depositId)
+          .createIfNotExists(createParents = true)
+          .bufferedWriter
+          .foreach(props.store(_, "")))
       .recoverWith {
         case NonFatal(e) => Failure(ActionException(deposit.row, s"Could not write properties to file: $e", e))
       }

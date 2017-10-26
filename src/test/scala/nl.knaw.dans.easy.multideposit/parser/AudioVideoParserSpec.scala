@@ -15,10 +15,9 @@
  */
 package nl.knaw.dans.easy.multideposit.parser
 
-import java.nio.file.Paths
-
+import better.files.File
 import nl.knaw.dans.easy.multideposit.model._
-import nl.knaw.dans.easy.multideposit.{ ParseException, Settings, UnitSpec, _ }
+import nl.knaw.dans.easy.multideposit.{ ParseException, Settings, UnitSpec }
 import nl.knaw.dans.lib.error.CompositeException
 import org.scalatest.BeforeAndAfterEach
 
@@ -52,14 +51,14 @@ trait AudioVideoTestObjects {
   lazy val audioVideo = AudioVideo(
     springfield = Option(Springfield("dans", "janvanmansum", "jans-test-files", PlayMode.Menu)),
     avFiles = Map(
-        settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath ->
+        settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg" ->
           Set(
             Subtitles(
-              path = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.srt").toAbsolutePath,
+              file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.srt",
               language = Option("en")
             ),
             Subtitles(
-              path = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur-nederlands.srt").toAbsolutePath,
+              file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur-nederlands.srt",
               language = Option("nl")
             )
           )
@@ -71,11 +70,12 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    Paths.get(getClass.getResource("/allfields/input").toURI).copyDir(settings.multidepositDir)
+    if (settings.multidepositDir.exists) settings.multidepositDir.delete()
+    File(getClass.getResource("/allfields/input").toURI).copyTo(settings.multidepositDir)
   }
 
   override implicit val settings: Settings = Settings(
-    multidepositDir = testDir.resolve("md").toAbsolutePath
+    multidepositDir = testDir / "md"
   )
   private val parser = AudioVideoParser()
 
@@ -293,8 +293,8 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> "en"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
-    val subtitles = Subtitles(settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.srt").toAbsolutePath, Some("en"))
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
+    val subtitles = Subtitles(settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.srt", Some("en"))
     avFile("ruimtereis01")(2)(row).value should matchPattern { case Success((`file`, `subtitles`)) => }
   }
 
@@ -305,8 +305,8 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> "en"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
-    val subtitles = Subtitles(settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.srt").toAbsolutePath, Some("en"))
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
+    val subtitles = Subtitles(settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.srt", Some("en"))
     avFile("ruimtereis01")(2)(row).value should matchPattern { case Success((`file`, `subtitles`)) => }
   }
 
@@ -317,8 +317,8 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> "en"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
-    val subtitles = Subtitles(settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.srt").toAbsolutePath, Some("en"))
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
+    val subtitles = Subtitles(settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.srt", Some("en"))
     avFile("ruimtereis01")(2)(row).value should matchPattern { case Success((`file`, `subtitles`)) => }
   }
 
@@ -331,7 +331,7 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
 
     inside(avFile("ruimtereis01")(2)(row).value) {
       case Failure(ParseException(2, msg, _)) =>
-        msg shouldBe "AV_FILE_PATH 'path/to/file/that/does/not/exist.mpg' does not exist"
+        msg shouldBe "AV_FILE_PATH does not represent a valid path"
     }
   }
 
@@ -342,7 +342,7 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> "en"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag"
     inside(avFile("ruimtereis01")(2)(row).value) {
       case Failure(ParseException(2, msg, _)) => msg shouldBe s"AV_FILE_PATH '$file' is not a file"
     }
@@ -357,7 +357,7 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
 
     inside(avFile("ruimtereis01")(2)(row).value) {
       case Failure(ParseException(2, msg, _)) =>
-        msg shouldBe "AV_FILE_PATH 'path/to/file/that/does/not/exist.mpg' does not exist"
+        msg shouldBe "AV_FILE_PATH does not represent a valid path"
     }
   }
 
@@ -368,7 +368,7 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag"
     inside(avFile("ruimtereis01")(2)(row).value) {
       case Failure(ParseException(2, msg, _)) => msg shouldBe s"AV_FILE_PATH '$file' is not a file"
     }
@@ -383,7 +383,7 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
 
     inside(avFile("ruimtereis01")(2)(row).value) {
       case Failure(ParseException(2, msg, _)) =>
-        msg shouldBe "AV_SUBTITLES 'path/to/file/that/does/not/exist.srt' does not exist"
+        msg shouldBe "AV_SUBTITLES does not represent a valid path"
     }
   }
 
@@ -394,7 +394,7 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> "en"
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/").toAbsolutePath
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag"
     inside(avFile("ruimtereis01")(2)(row).value) {
       case Failure(ParseException(2, msg, _)) => msg shouldBe s"AV_SUBTITLES '$file' is not a file"
     }
@@ -432,8 +432,8 @@ class AudioVideoParserSpec extends UnitSpec with AudioVideoTestObjects with Befo
       "AV_SUBTITLES_LANGUAGE" -> ""
     )
 
-    val file = settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.mpg").toAbsolutePath
-    val subtitles = Subtitles(settings.multidepositDir.resolve("ruimtereis01/reisverslag/centaur.srt").toAbsolutePath)
+    val file = settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.mpg"
+    val subtitles = Subtitles(settings.multidepositDir / "ruimtereis01" / "reisverslag" / "centaur.srt")
     avFile("ruimtereis01")(2)(row).value should matchPattern { case Success((`file`, `subtitles`)) => }
   }
 

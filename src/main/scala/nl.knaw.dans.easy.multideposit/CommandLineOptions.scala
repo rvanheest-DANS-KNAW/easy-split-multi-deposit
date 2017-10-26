@@ -19,6 +19,8 @@ import java.nio.file.{ Path, Paths }
 import javax.naming.Context
 import javax.naming.ldap.InitialLdapContext
 
+import better.files.File._
+import better.files._
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 import org.rogach.scallop.{ ScallopConf, ScallopOption }
 
@@ -31,9 +33,9 @@ object CommandLineOptions extends DebugEnhancedLogging {
     val opts = new ScallopCommandLine(props, args)
 
     val settings = Settings(
-      multidepositDir = opts.multiDepositDir().toAbsolutePath,
-      stagingDir = opts.stagingDir().toAbsolutePath,
-      outputDepositDir = opts.outputDepositDir().toAbsolutePath,
+      multidepositDir = File(opts.multiDepositDir()),
+      stagingDir = File(opts.stagingDir()),
+      outputDepositDir = File(opts.outputDepositDir()),
       datamanager = opts.datamanager(),
       depositPermissions = DepositPermissions(props.properties.getString("deposit.permissions.access"), props.properties.getString("deposit.permissions.group")),
       formats = props.formats,
@@ -105,8 +107,8 @@ class ScallopCommandLine(configuration: Configuration, args: Array[String]) exte
   validatePathExists(multiDepositDir)
   validateFileIsDirectory(multiDepositDir.map(_.toFile))
   validate(multiDepositDir)(dir => {
-    val instructionFile: Path = multiDepositInstructionsFile(dir)
-    if (!dir.directoryContains(instructionFile))
+    val instructionFile: File = multiDepositInstructionsFile(dir)
+    if (!dir.contains(instructionFile))
       Left(s"No instructions file found in this directory, expected: $instructionFile")
     else
       Right(())

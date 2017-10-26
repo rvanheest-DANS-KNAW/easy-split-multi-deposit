@@ -15,8 +15,6 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.Files
-
 import nl.knaw.dans.easy.multideposit.model.DepositId
 import nl.knaw.dans.easy.multideposit.{ Settings, _ }
 import nl.knaw.dans.lib.error.CompositeException
@@ -28,7 +26,7 @@ case class MoveDepositToOutputDir(row: Int, depositId: DepositId)(implicit setti
   private val outputDir = outputDepositDir(depositId)
 
   override def checkPreconditions: Try[Unit] = {
-    Try { Files.exists(outputDir) }
+    Try { outputDir.exists }
       .flatMap {
         case true => Failure(ActionException(row, s"The deposit for dataset $depositId already exists in $outputDir"))
         case false => Success(())
@@ -40,9 +38,9 @@ case class MoveDepositToOutputDir(row: Int, depositId: DepositId)(implicit setti
 
     debug(s"moving $stagingDirectory to $outputDir")
 
-    Try { stagingDirectory.moveDir(outputDir) } recoverWith {
+    Try { stagingDirectory.moveTo(outputDir); () } recoverWith {
       case e =>
-        Try { Files.exists(outputDir) } match {
+        Try { outputDir.exists } match {
           case Success(true) => Failure(ActionException(row, "An error occurred while moving " +
             s"$stagingDirectory to $outputDir: ${ e.getMessage }. The move is probably only partially " +
             s"done since the output directory does exist. This move is, however, NOT revertable! " +

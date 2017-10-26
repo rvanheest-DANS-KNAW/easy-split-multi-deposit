@@ -15,8 +15,6 @@
  */
 package nl.knaw.dans.easy.multideposit.actions
 
-import java.nio.file.Files
-
 import nl.knaw.dans.easy.multideposit.{ Settings, UnitSpec, _ }
 import org.scalatest.BeforeAndAfterEach
 
@@ -25,8 +23,8 @@ import scala.util.{ Failure, Success }
 class CreateDirectoriesSpec extends UnitSpec with BeforeAndAfterEach {
 
   implicit val settings: Settings = Settings(
-    multidepositDir = testDir.resolve("md"),
-    stagingDir = testDir.resolve("sd")
+    multidepositDir = testDir / "md",
+    stagingDir = testDir / "sd"
   )
   private val depositId = "ds1"
   private val action = CreateDirectories(stagingDir(depositId), stagingBagDir(depositId))(1, depositId)
@@ -36,26 +34,27 @@ class CreateDirectoriesSpec extends UnitSpec with BeforeAndAfterEach {
 
     // create depositDir base directory
     val baseDir = settings.stagingDir
-    baseDir.deleteDirectory()
-    Files.createDirectory(baseDir)
-    baseDir.toFile should exist
+    if (baseDir.exists)
+      baseDir.delete()
+    baseDir.createIfNotExists(asDirectory = true, createParents = true)
+    baseDir.toJava should exist
   }
 
   "checkPreconditions" should "succeed if the output directories do not yet exist" in {
     // directories do not exist before
-    stagingDir(depositId).toFile shouldNot exist
-    stagingBagDir(depositId).toFile shouldNot exist
+    stagingDir(depositId).toJava shouldNot exist
+    stagingBagDir(depositId).toJava shouldNot exist
 
     // creation of directories
     action.checkPreconditions shouldBe a[Success[_]]
   }
 
   it should "fail if either one of the output directories does already exist" in {
-    Files.createDirectories(stagingBagDir(depositId))
+    stagingBagDir(depositId).createDirectories()
 
     // some directories do already exist before
-    stagingDir(depositId).toFile should exist
-    stagingBagDir(depositId).toFile should exist
+    stagingDir(depositId).toJava should exist
+    stagingBagDir(depositId).toJava should exist
 
     // creation of directories
     inside(action.checkPreconditions) {
@@ -77,20 +76,20 @@ class CreateDirectoriesSpec extends UnitSpec with BeforeAndAfterEach {
     action.rollback() shouldBe a[Success[_]]
 
     // test that the directories are really not there anymore
-    stagingDir(depositId).toFile shouldNot exist
-    stagingBagDir(depositId).toFile shouldNot exist
+    stagingDir(depositId).toJava shouldNot exist
+    stagingBagDir(depositId).toJava shouldNot exist
   }
 
   def executeTest(): Unit = {
     // directories do not exist before
-    stagingDir(depositId).toFile shouldNot exist
-    stagingBagDir(depositId).toFile shouldNot exist
+    stagingDir(depositId).toJava shouldNot exist
+    stagingBagDir(depositId).toJava shouldNot exist
 
     // creation of directories
     action.execute shouldBe a[Success[_]]
 
     // test existance after creation
-    stagingDir(depositId).toFile should exist
-    stagingBagDir(depositId).toFile should exist
+    stagingDir(depositId).toJava should exist
+    stagingBagDir(depositId).toJava should exist
   }
 }

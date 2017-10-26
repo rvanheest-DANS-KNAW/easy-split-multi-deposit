@@ -15,9 +15,10 @@
  */
 package nl.knaw.dans.easy.multideposit.parser
 
-import java.nio.file.{ Files, Path, Paths }
+import java.nio.file.NoSuchFileException
 import java.util.Locale
 
+import better.files.File
 import nl.knaw.dans.easy.multideposit._
 import nl.knaw.dans.easy.multideposit.model._
 import nl.knaw.dans.lib.error._
@@ -136,16 +137,11 @@ trait ParserUtils extends DebugEnhancedLogging {
    * @param path the path to a file, as provided by the user input
    * @return the absolute path to this file, if it exists
    */
-  def findPath(depositId: DepositId)(path: String)(implicit settings: Settings): Path = {
-    val option1 = multiDepositDir(depositId).resolve(path)
-    val option2 = settings.multidepositDir.resolve(path)
-
-    (option1, option2) match {
-      case (path1, _) if Files.exists(path1) => path1
-      case (_, path2) if Files.exists(path2) =>
-        logger.warn(s"path '$path' is not relative to its depositId '$depositId', but rather relative to the multideposit")
-        path2
-      case (_, _) => Paths.get(path)
-    }
+  def findPath(depositId: DepositId)(path: String)(implicit settings: Settings): Try[File] = {
+    Try { multiDepositDir(depositId) / path }.filter(_.exists)
+      .orElse(Try { settings.multidepositDir / path }
+        .filter(_.exists)
+        .doIfSuccess(_ => logger.warn(s"path '$path' is not relative to its depositId '$depositId', but rather relative to the multideposit")))
+      .recoverWith { case _ => Failure(new NoSuchFileException(s"unable to find path $path for depositor $depositId")) }
   }
 }

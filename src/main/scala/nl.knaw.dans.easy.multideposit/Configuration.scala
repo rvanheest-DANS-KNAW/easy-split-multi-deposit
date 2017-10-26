@@ -36,7 +36,7 @@ object Configuration {
         load((cfgPath / "application.properties").toJava)
       },
       formats =
-        if (formatsFile.exists) formatsFile.contentAsString.lines.map(_.trim).toSet
+        if (formatsFile.exists) formatsFile.lines.map(_.trim).toSet
         else Set.empty[String]
     )
   }

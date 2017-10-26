@@ -31,7 +31,7 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
 
   private val formatsFile: File = currentWorkingDirectory / "src" / "main" / "assembly" / "dist" / "cfg" / "acceptedMediaTypes.txt"
   private val formats =
-    if (formatsFile.exists) formatsFile.contentAsString.lines.map(_.trim).toSet
+    if (formatsFile.exists) formatsFile.lines.map(_.trim).toSet
     else fail("Cannot find file: acceptedMediaTypes.txt")
 
   "acceptedMediaFiles" should "contain certain Formats" in {
@@ -136,8 +136,7 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
         val expBagInfo = expBag / "bag-info.txt"
 
         // skipping the Bagging-Date which is different every time
-        bagInfo.contentAsString.lines.toSeq should contain allElementsOf
-          expBagInfo.contentAsString.lines.filterNot(_ contains "Bagging-Date").toSeq
+        bagInfo.lines should contain allElementsOf expBagInfo.lines.filterNot(_ contains "Bagging-Date")
       }
 
       it should "check bagit.txt" in {
@@ -146,8 +145,7 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
         val bagit = bag / "bagit.txt"
         val expBagit = expBag / "bagit.txt"
 
-        bagit.contentAsString.lines.toSeq should contain allElementsOf
-          expBagit.contentAsString.lines.toSeq
+        bagit.lines should contain allElementsOf expBagit.lines
       }
 
       it should "check manifest-sha1.txt" in {
@@ -156,8 +154,7 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
         val manifest = bag / "manifest-sha1.txt"
         val expManifest = expBag / "manifest-sha1.txt"
 
-        manifest.contentAsString.lines.toSeq should contain allElementsOf
-          expManifest.contentAsString.lines.toSeq
+        manifest.lines should contain allElementsOf expManifest.lines
       }
 
       it should "check tagmanifest-sha1.txt" in {
@@ -168,10 +165,9 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
 
         // skipping bag-info.txt and manifest-sha1.txt which are different every time
         // due to the Bagging-Date and 'available' in metadata/dataset.xml
-        tagManifest.contentAsString.lines.toSeq should contain allElementsOf
-          expTagManifest.contentAsString.lines
+        tagManifest.lines should contain allElementsOf expTagManifest.lines
             .filterNot(_ contains "bag-info.txt")
-            .filterNot(_ contains "manifest-sha1.txt").toSeq
+            .filterNot(_ contains "manifest-sha1.txt")
       }
 
       it should "check the files in data/" in {
@@ -242,11 +238,9 @@ class BlackBoxSpec extends UnitSpec with MockFactory with CustomMatchers {
         val expProps = expectedOutputDir / s"input-$bagName" / "deposit.properties"
 
         // skipping comment lines, as well as the line with randomized bag-id
-        props.contentAsString.lines.toSeq should contain allElementsOf
-          expProps.contentAsString.lines
+        props.lines should contain allElementsOf expProps.lines
             .filterNot(_ startsWith "#")
             .filterNot(_ contains "bag-store.bag-id")
-            .toSeq
       }
     }
 
